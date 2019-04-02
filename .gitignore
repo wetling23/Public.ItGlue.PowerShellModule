@@ -2,3 +2,4 @@ build.ps1
 psake.ps1
 .vs
 testCode.ps1
+testingpsake.ps1
