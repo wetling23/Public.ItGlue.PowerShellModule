@@ -7,6 +7,8 @@ Function Out-ItGlueFlexibleAsset {
                 - Initial release.
             V1.0.0.1 date: 2 April 2019
                 - Updated in-line documentation.
+            V1.0.0.2 date: 2 April 2019
+                - Updated error outpout variable.
         .PARAMETER Data
             Custom PSObject containing flexible asset properties.
         .PARAMETER HttpMethod
@@ -124,12 +126,9 @@ Function Out-ItGlueFlexibleAsset {
         Invoke-RestMethod -Method $HttpMethod -Headers $header -Uri $uploadUrl -Body ($Data | ConvertTo-Json -Depth 10) -ErrorAction Stop
     }
     Catch {
-        $message = ("{0}: Unexpected error uploading the domain settings to ITGlue. To prevent errors, {1} will exit. The error is: {2}." -f (Get-Date -Format s), $MyInvocation.MyCommand, $_.Exception.errordetails)
-        If ($BlockLogging) {Write-Error $message} Else {Write-Error $message -ForegroundColor Red; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Error -Message $message -EventId 5417}
+        $message = ("{0}: Unexpected error uploading the domain settings to ITGlue. To prevent errors, {1} will exit. The error is: {2}." -f (Get-Date -Format s), $MyInvocation.MyCommand, $_.Exception.Message)
+        If ($BlockLogging) {Write-Error $message} Else {Write-Error $message; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Error -Message $message -EventId 5417}
 
         Return
     }
-} #1.0.0.1
-
-
-##need to make sure we have an instance id, if we are doing a patch
+} #1.0.0.2
