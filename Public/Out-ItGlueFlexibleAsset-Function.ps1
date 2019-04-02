@@ -9,6 +9,8 @@ Function Out-ItGlueFlexibleAsset {
                 - Updated in-line documentation.
             V1.0.0.2 date: 2 April 2019
                 - Updated error outpout variable.
+            V1.0.0.3 date: 2 April 2019
+                - Fixed bug in variable validation.
         .PARAMETER Data
             Custom PSObject containing flexible asset properties.
         .PARAMETER HttpMethod
@@ -76,7 +78,7 @@ Function Out-ItGlueFlexibleAsset {
     If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) {Write-Verbose $message} ElseIf ($PSBoundParameters['Verbose']) {Write-Verbose $message; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Information -Message $message -EventId 5417}
 
     # We are patching, but don't have a flexible asset instance to patch, request the ID.
-    If ($HttpMethod -eq 'PATCH') -and (-NOT($FlexibleAssetInstanceId)) {
+    If (($HttpMethod -eq 'PATCH') -and (-NOT($FlexibleAssetInstanceId))) {
         $FlexibleAssetInstanceId = Read-Host -Message "Enter a flexible asset instance ID"
     }
 
@@ -131,4 +133,4 @@ Function Out-ItGlueFlexibleAsset {
 
         Return
     }
-} #1.0.0.2
+} #1.0.0.3
