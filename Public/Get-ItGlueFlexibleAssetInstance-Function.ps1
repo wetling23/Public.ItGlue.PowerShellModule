@@ -7,6 +7,8 @@ Function Get-ItGlueFlexibleAssetInstance {
                 - Initial release.
             V1.0.0.1 date: 2 April 2019
                 - Updated in-line documentation.
+            V1.0.0.2 date: 5 April 2019
+                - Added support for timeout response and max loop count.
         .PARAMETER ItGlueApiKey
             ITGlue API key used to send data to ITGlue.
         .PARAMETER ItGlueUserCred
@@ -62,27 +64,28 @@ Function Get-ItGlueFlexibleAssetInstance {
     }
 
     $message = ("{0}: Beginning {1}." -f (Get-Date -Format s), $MyInvocation.MyCommand)
-    If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) {Write-Verbose $message} ElseIf ($PSBoundParameters['Verbose']) {Write-Verbose $message; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Information -Message $message -EventId 5417}
+    If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Information -Message $message -EventId 5417 }
 
     $message = ("{0}: Operating in the {1} parameterset." -f (Get-Date -Format s), $PsCmdlet.ParameterSetName)
-    If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) {Write-Verbose $message} ElseIf ($PSBoundParameters['Verbose']) {Write-Verbose $message; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Information -Message $message -EventId 5417}
+    If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Information -Message $message -EventId 5417 }
 
     # Initialize variables.
+    $stopLoop = $false
     Switch ($PsCmdlet.ParameterSetName) {
         'ITGlueApiKey' {
             $message = ("{0}: Setting header with API key." -f (Get-Date -Format s))
-            If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) {Write-Verbose $message} ElseIf ($PSBoundParameters['Verbose']) {Write-Verbose $message; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Information -Message $message -EventId 5417}
+            If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Information -Message $message -EventId 5417 }
 
             $ItGlueApiHeader = @{"x-api-key" = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($ItGlueApiKey)); "content-type" = "application/vnd.api+json"; }
         }
         'ITGlueUserCred' {
             $message = ("{0}: Setting header with user-access token." -f (Get-Date -Format s))
-            If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) {Write-Verbose $message} ElseIf ($PSBoundParameters['Verbose']) {Write-Verbose $message; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Information -Message $message -EventId 5417}
+            If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Information -Message $message -EventId 5417 }
 
             $accessToken = Get-ItGlueJsonWebToken -Credential $ItGlueUserCred
 
             $ItGlueUriBase = 'https://api-mobile-prod.itglue.com/api'
-            $ItGlueApiHeader = @{}
+            $ItGlueApiHeader = @{ }
             $ItGlueApiHeader.add('cache-control', 'no-cache')
             $ItGlueApiHeader.add('content-type', 'application/vnd.api+json')
             $ItGlueApiHeader.add('authorization', "Bearer $(($accessToken.Content | ConvertFrom-Json).token)")
@@ -90,18 +93,39 @@ Function Get-ItGlueFlexibleAssetInstance {
     }
 
     $message = ("Attempting to retrieve all Active Directory flexible assets from ITGlue.")
-    If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) {Write-Verbose $message} ElseIf ($PSBoundParameters['Verbose']) {Write-Verbose $message; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Information -Message $message -EventId 5417}
+    If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Information -Message $message -EventId 5417 }
 
-    Try {
-        $allExistingActiveDirectories = Invoke-RestMethod -Method GET -Headers $ItGlueApiHeader -Uri "$ItGlueUriBase/flexible_assets?page[size]=$ItGluePageSize" -Body (@{"filter[flexible_asset_type_id]" = "$FlexibleAssetId"}) -ErrorAction Stop
+    $loopCount = 0
+    Do {
+        Try {
+            $allExistingActiveDirectories = Invoke-RestMethod -Method GET -Headers $ItGlueApiHeader -Uri "$ItGlueUriBase/flexible_assets?page[size]=$ItGluePageSize" -Body (@{"filter[flexible_asset_type_id]" = "$FlexibleAssetId" }) -ErrorAction Stop
+
+            $stopLoop = $True
+        }
+        Catch {
+            If ($loopCount -ge 5) {
+                $message = ("{0}: Loop-count limit reached, {1} will exit." -f (Get-Date -Format s), $MyInvocation.MyCommand, $_.Exception.Message)
+                If ($BlockLogging) { Write-Host $message -ForegroundColor Red } Else { Write-Host $message -ForegroundColor Red; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Error -Message $message -EventId 5417 }
+
+                Return "Error"
+            }
+            If (($_.ErrorDetails.message | ConvertFrom-Json | Select-Object -ExpandProperty message) -eq "Endpoint request timed out") {
+                $message = ("{0}: Rate limit exceeded, retrying in 60 seconds." -f (Get-Date -Format s), $MyInvocation.MyCommand, $_.Exception.Message)
+                If ($BlockLogging) { Write-Warning $message } Else { Write-Warning $message; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Warning -Message $message -EventId 5417 }
+
+                Start-Sleep -Seconds 60
+            }
+            Else {
+                $message = ("{0}: Unexpected error getting flexible assets. To prevent errors, {1} will exit. PowerShell returned: {2}" -f (Get-Date -Format s), $MyInvocation.MyCommand, $_.Exception.Message)
+                If ($BlockLogging) { Write-Error $message } Else { Write-Error $message; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Error -Message $message -EventId 5417 }
+
+                Return "Error"
+            }
+        }
     }
-    Catch {
-        $message = ("{0}: Unexpected error retrieving all Active Directory flexible assets from ITGlue. To prevent errors, {1} will exit. The error is: {2}" -f (Get-Date -Format s), $MyInvocation.MyCommand, $_.Exception.Message)
-        If ($BlockLogging) {Write-Error $message -ForegroundColor Red} Else {Write-Error $message; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Error -Message $message -EventId 5417}
+    While ($stopLoop -eq $false)
 
-        Return
-    }
-
+    $loopCount = 0
     $allExistingActiveDirectories = for ($i = 1; $i -le $($allExistingActiveDirectories.meta.'total-pages'); $i++) {
         $adQueryBody = @{
             "page[size]"                     = $ItGluePageSize
@@ -111,10 +135,37 @@ Function Get-ItGlueFlexibleAssetInstance {
         }
 
         $message = ("Getting page {0} of {1} of Active Directory flexible assets." -f $i, $($allExistingActiveDirectories.meta.'total-pages'))
-        If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) {Write-Verbose $message} ElseIf ($PSBoundParameters['Verbose']) {Write-Verbose $message; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Information -Message $message -EventId 5417}
+        If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Information -Message $message -EventId 5417 }
 
-        (Invoke-RestMethod -Method GET -Headers $ItGlueApiHeader -Uri "$ItGlueUriBase/flexible_assets" -Body $adQueryBody -ErrorAction Stop).data
+        Do {
+            Try {
+                (Invoke-RestMethod -Method GET -Headers $ItGlueApiHeader -Uri "$ItGlueUriBase/flexible_assets" -Body $adQueryBody -ErrorAction Stop).data
+
+                $stopLoop = $True
+            }
+            Catch {
+                If ($loopCount -ge 5) {
+                    $message = ("{0}: Loop-count limit reached, {1} will exit." -f (Get-Date -Format s), $MyInvocation.MyCommand, $_.Exception.Message)
+                    If ($BlockLogging) { Write-Host $message -ForegroundColor Red } Else { Write-Host $message -ForegroundColor Red; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Error -Message $message -EventId 5417 }
+
+                    Return "Error"
+                }
+                If (($_.ErrorDetails.message | ConvertFrom-Json | Select-Object -ExpandProperty message) -eq "Endpoint request timed out") {
+                    $message = ("{0}: Rate limit exceeded, retrying in 60 seconds." -f (Get-Date -Format s), $MyInvocation.MyCommand, $_.Exception.Message)
+                    If ($BlockLogging) { Write-Warning $message } Else { Write-Warning $message; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Warning -Message $message -EventId 5417 }
+
+                    Start-Sleep -Seconds 60
+                }
+                Else {
+                    $message = ("{0}: Unexpected error getting flexible assets. To prevent errors, {1} will exit. PowerShell returned: {2}" -f (Get-Date -Format s), $MyInvocation.MyCommand, $_.Exception.Message)
+                    If ($BlockLogging) { Write-Error $message } Else { Write-Error $message; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Error -Message $message -EventId 5417 }
+
+                    Return "Error"
+                }
+            }
+        }
+        While ($stopLoop -eq $false)
     }
 
     Return $allExistingActiveDirectories
-} #1.0.0.1
+} #1.0.0.2
