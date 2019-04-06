@@ -98,6 +98,8 @@ Function Get-ItGlueFlexibleAssetInstance {
     $loopCount = 0
     Do {
         Try {
+            $loopCount++
+
             $allExistingActiveDirectories = Invoke-RestMethod -Method GET -Headers $ItGlueApiHeader -Uri "$ItGlueUriBase/flexible_assets?page[size]=$ItGluePageSize" -Body (@{"filter[flexible_asset_type_id]" = "$FlexibleAssetId" }) -ErrorAction Stop
 
             $stopLoop = $True
@@ -130,7 +132,7 @@ Function Get-ItGlueFlexibleAssetInstance {
         $adQueryBody = @{
             "page[size]"                     = $ItGluePageSize
             "page[number]"                   = $i
-            #"filter[organization_id]"        = "$ItGlueCustomerId" This line can come out eventually. I just don't want to remove it yet. It is not required for this function (obviously).
+            #"filter[organization_id]"        = "$ItGlueCustomerId" #This line can come out eventually. I just don't want to remove it yet. It is not required for this function (obviously).
             "filter[flexible_asset_type_id]" = "$FlexibleAssetId"
         }
 
@@ -139,6 +141,8 @@ Function Get-ItGlueFlexibleAssetInstance {
 
         Do {
             Try {
+                $loopCount++
+
                 (Invoke-RestMethod -Method GET -Headers $ItGlueApiHeader -Uri "$ItGlueUriBase/flexible_assets" -Body $adQueryBody -ErrorAction Stop).data
 
                 $stopLoop = $True
