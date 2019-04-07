@@ -75,6 +75,8 @@ Function Out-ItGlueFlexibleAsset {
 
     # Initialize variables.
     $HttpMethod = $HttpMethod.ToUpper()
+    $loopCount = 0
+    $stopLoop = $false
 
     $message = ("{0}: Beginning {1}." -f (Get-Date -Format s), $MyInvocation.MyCommand)
     If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Information -Message $message -EventId 5417 }
