@@ -5,6 +5,8 @@ Function Get-ItGlueOrganization {
         .NOTES
             V1.0.0.0 date: 5 April 2019
                 - Initial release.
+            V1.0.0.1 date: 24 April 2019
+                - Added $MaxLoopCount parameter.
         .PARAMETER CustomerName
             Enter the name of the desired customer, or "All" to retrieve all organizations.
         .PARAMETER CustomerId
@@ -13,6 +15,8 @@ Function Get-ItGlueOrganization {
             ITGlue API key used to send data to ITGlue.
         .PARAMETER ItGlueUserCred
             ITGlue credential object for the desired local account.
+        .PARAMETER MaxLoopCount
+            Number of times the cmdlet will wait, when ITGlue responds with 'rate limit reached'.
         .PARAMETER ItGlueUriBase
             Base URL for the ITGlue API.
         .PARAMETER ItGluePageSize
@@ -46,6 +50,8 @@ Function Get-ItGlueOrganization {
 
         [Parameter(ParameterSetName = 'ITGlueUserCred', Mandatory)]
         [System.Management.Automation.PSCredential]$ItGlueUserCred,
+
+        [int]$MaxLoopCount = 5,
 
         [string]$ItGlueUriBase = "https://api.itglue.com",
 
@@ -101,7 +107,7 @@ Function Get-ItGlueOrganization {
                 $stopLoop = $True
             }
             Catch {
-                If ($loopCount -ge 5) {
+                If ($loopCount -ge $MaxLoopCount) {
                     $message = ("{0}: Loop-count limit reached, {1} will exit." -f (Get-Date -Format s), $MyInvocation.MyCommand, $_.Exception.Message)
                     If ($BlockLogging) { Write-Host $message -ForegroundColor Red } Else { Write-Host $message -ForegroundColor Red; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Error -Message $message -EventId 5417 }
 
@@ -140,7 +146,7 @@ Function Get-ItGlueOrganization {
                     (Invoke-RestMethod -Method GET -Headers $header -Uri "$ItGlueUriBase/organizations" -Body $orgQueryBody -ErrorAction Stop).data
                 }
                 Catch {
-                    If ($loopCount -ge 5) {
+                    If ($loopCount -ge $MaxLoopCount) {
                         $message = ("{0}: Loop-count limit reached, {1} will exit." -f (Get-Date -Format s), $MyInvocation.MyCommand, $_.Exception.Message)
                         If ($BlockLogging) { Write-Host $message -ForegroundColor Red } Else { Write-Host $message -ForegroundColor Red; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Error -Message $message -EventId 5417 }
 
@@ -184,7 +190,7 @@ Function Get-ItGlueOrganization {
                 $stopLoop = $True
             }
             Catch {
-                If ($loopCount -ge 5) {
+                If ($loopCount -ge $MaxLoopCount) {
                     $message = ("{0}: Loop-count limit reached, {1} will exit." -f (Get-Date -Format s), $MyInvocation.MyCommand, $_.Exception.Message)
                     If ($BlockLogging) { Write-Host $message -ForegroundColor Red } Else { Write-Host $message -ForegroundColor Red; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Error -Message $message -EventId 5417 }
 
@@ -223,7 +229,7 @@ Function Get-ItGlueOrganization {
                     (Invoke-RestMethod -Method GET -Headers $header -Uri "$ItGlueUriBase/organizations" -Body $orgQueryBody -ErrorAction Stop).data
                 }
                 Catch {
-                    If ($loopCount -ge 5) {
+                    If ($loopCount -ge $MaxLoopCount) {
                         $message = ("{0}: Loop-count limit reached, {1} will exit." -f (Get-Date -Format s), $MyInvocation.MyCommand, $_.Exception.Message)
                         If ($BlockLogging) { Write-Host $message -ForegroundColor Red } Else { Write-Host $message -ForegroundColor Red; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Error -Message $message -EventId 5417 }
 
@@ -249,7 +255,7 @@ Function Get-ItGlueOrganization {
         $message = ("{0}: Found {1} organizations, filtering for {2}." -f (Get-Date -Format s), $organizations.count, $CustomerName)
         If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
-        $organizations = $organizations | Where-Object {$_.attributes.name -eq $CustomerName}
+        $organizations = $organizations | Where-Object { $_.attributes.name -eq $CustomerName }
 
         Return $organizations
     }
@@ -267,7 +273,7 @@ Function Get-ItGlueOrganization {
                 $stopLoop = $True
             }
             Catch {
-                If ($loopCount -ge 5) {
+                If ($loopCount -ge $MaxLoopCount) {
                     $message = ("{0}: Loop-count limit reached, {1} will exit." -f (Get-Date -Format s), $MyInvocation.MyCommand, $_.Exception.Message)
                     If ($BlockLogging) { Write-Host $message -ForegroundColor Red } Else { Write-Host $message -ForegroundColor Red; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Error -Message $message -EventId 5417 }
 
@@ -291,4 +297,4 @@ Function Get-ItGlueOrganization {
 
         Return $organizations
     }
-} #1.0.0.0
+} #1.0.0.1

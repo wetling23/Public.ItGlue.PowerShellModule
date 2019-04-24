@@ -9,12 +9,18 @@ Function Get-ItGlueFlexibleAssetInstance {
                 - Updated in-line documentation.
             V1.0.0.2 date: 5 April 2019
                 - Added support for timeout response and max loop count.
+            V1.0.0.3 date: 22 April 2019
+                - Fixed reference to specific flexible asset, in logging.
+            V1.0.0.4 date: 24 April 2019
+                - Added $MaxLoopCount parameter.
         .PARAMETER ItGlueApiKey
             ITGlue API key used to send data to ITGlue.
         .PARAMETER ItGlueUserCred
             ITGlue credential object for the desired local account.
         .PARAMETER FlexibleAssetId
             Identifier ID for the desired flexible asset type.
+        .PARAMETER MaxLoopCount
+            Number of times the cmdlet will wait, when ITGlue responds with 'rate limit reached'.
         .PARAMETER ItGlueUriBase
             Base URL for the ITGlue API.
         .PARAMETER ItGluePageSize
@@ -42,6 +48,8 @@ Function Get-ItGlueFlexibleAssetInstance {
 
         [Parameter(Mandatory = $True)]
         $FlexibleAssetId,
+
+        [int]$MaxLoopCount = 5,
 
         [string]$ItGlueUriBase = "https://api.itglue.com",
 
@@ -92,7 +100,7 @@ Function Get-ItGlueFlexibleAssetInstance {
         }
     }
 
-    $message = ("Attempting to retrieve all Active Directory flexible assets from ITGlue.")
+    $message = ("Attempting to retrieve all the requested flexible assets from ITGlue.")
     If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Information -Message $message -EventId 5417 }
 
     $loopCount = 0
@@ -105,7 +113,7 @@ Function Get-ItGlueFlexibleAssetInstance {
             $stopLoop = $True
         }
         Catch {
-            If ($loopCount -ge 5) {
+            If ($loopCount -ge $MaxLoopCount) {
                 $message = ("{0}: Loop-count limit reached, {1} will exit." -f (Get-Date -Format s), $MyInvocation.MyCommand, $_.Exception.Message)
                 If ($BlockLogging) { Write-Host $message -ForegroundColor Red } Else { Write-Host $message -ForegroundColor Red; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Error -Message $message -EventId 5417 }
 
@@ -136,7 +144,7 @@ Function Get-ItGlueFlexibleAssetInstance {
             "filter[flexible_asset_type_id]" = "$FlexibleAssetId"
         }
 
-        $message = ("Getting page {0} of {1} of Active Directory flexible assets." -f $i, $($allExistingActiveDirectories.meta.'total-pages'))
+        $message = ("Getting page {0} of {1} of the requested flexible assets." -f $i, $($allExistingActiveDirectories.meta.'total-pages'))
         If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Information -Message $message -EventId 5417 }
 
         Do {
@@ -148,7 +156,7 @@ Function Get-ItGlueFlexibleAssetInstance {
                 $stopLoop = $True
             }
             Catch {
-                If ($loopCount -ge 5) {
+                If ($loopCount -ge $MaxLoopCount) {
                     $message = ("{0}: Loop-count limit reached, {1} will exit." -f (Get-Date -Format s), $MyInvocation.MyCommand, $_.Exception.Message)
                     If ($BlockLogging) { Write-Host $message -ForegroundColor Red } Else { Write-Host $message -ForegroundColor Red; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Error -Message $message -EventId 5417 }
 
@@ -172,4 +180,4 @@ Function Get-ItGlueFlexibleAssetInstance {
     }
 
     Return $allExistingActiveDirectories
-} #1.0.0.2
+} #1.0.0.4

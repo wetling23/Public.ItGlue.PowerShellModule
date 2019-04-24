@@ -5,12 +5,16 @@ Function Remove-ItGlueFlexibleAssetInstance {
         .NOTES
             V1.0.0.0 date: 11 April 2019
                 - Initial release.
+            V1.0.0.1 date: 24 April 2019
+                - Added $MaxLoopCount parameter.
         .PARAMETER ItGlueApiKey
             ITGlue API key used to send data to ITGlue.
         .PARAMETER ItGlueUserCred
             ITGlue credential object for the desired local account.
         .PARAMETER Id
             Identifier ID for the desired flexible asset type.
+        .PARAMETER MaxLoopCount
+            Number of times the cmdlet will wait, when ITGlue responds with 'rate limit reached'.
         .PARAMETER ItGlueUriBase
             Base URL for the ITGlue API.
         .PARAMETER ItGluePageSize
@@ -38,6 +42,8 @@ Function Remove-ItGlueFlexibleAssetInstance {
 
         [Parameter(Mandatory = $True, ValueFromPipeline)]
         $Id,
+
+        [int]$MaxLoopCount = 5,
 
         [string]$ItGlueUriBase = "https://api.itglue.com",
 
@@ -102,7 +108,7 @@ Function Remove-ItGlueFlexibleAssetInstance {
             $stopLoop = $True
         }
         Catch {
-            If ($loopCount -ge 5) {
+            If ($loopCount -ge $MaxLoopCount) {
                 $message = ("{0}: Loop-count limit reached, {1} will exit." -f (Get-Date -Format s), $MyInvocation.MyCommand, $_.Exception.Message)
                 If ($BlockLogging) { Write-Host $message -ForegroundColor Red } Else { Write-Host $message -ForegroundColor Red; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Error -Message $message -EventId 5417 }
 
@@ -125,4 +131,4 @@ Function Remove-ItGlueFlexibleAssetInstance {
     While ($stopLoop -eq $false)
 
     Return $response
-} #1.0.0.0
+} #1.0.0.1
