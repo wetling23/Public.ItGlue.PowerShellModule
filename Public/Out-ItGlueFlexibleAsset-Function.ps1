@@ -17,6 +17,8 @@ Function Out-ItGlueFlexibleAsset {
                 - Updated how we check for rate-limit response.
             V1.0.0.6 date: 24 April 2019
                 - Added $MaxLoopCount parameter.
+            V1.0.0.7 date: 20 May 2019
+                - Updated rate-limit detection.
         .PARAMETER Data
             Custom PSObject containing flexible asset properties.
         .PARAMETER HttpMethod
@@ -156,7 +158,9 @@ Function Out-ItGlueFlexibleAsset {
                 Return "Error"
             }
             If (($_.ErrorDetails.message | ConvertFrom-Json | Select-Object -ExpandProperty message -ErrorAction SilentlyContinue) -eq "Endpoint request timed out") {
-                $message = ("{0}: Rate limit exceeded, retrying in 60 seconds." -f (Get-Date -Format s), $MyInvocation.MyCommand, $_.Exception.Message)
+                $ItGluePageSize = $ItGluePageSize / 2
+
+                $message = ("{0}: Rate limit exceeded, retrying in 60 seconds with `$ITGluePageSize == {1}." -f (Get-Date -Format s), $ItGluePageSize)
                 If ($BlockLogging) { Write-Warning $message } Else { Write-Warning $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Warning -Message $message -EventId 5417 }
 
                 Start-Sleep -Seconds 60
@@ -170,4 +174,4 @@ Function Out-ItGlueFlexibleAsset {
         }
     }
     While ($stopLoop -eq $false)
-} #1.0.0.6
+} #1.0.0.7

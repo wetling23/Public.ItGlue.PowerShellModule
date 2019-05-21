@@ -13,6 +13,8 @@ Function Get-ItGlueFlexibleAssetInstance {
                 - Fixed reference to specific flexible asset, in logging.
             V1.0.0.4 date: 24 April 2019
                 - Added $MaxLoopCount parameter.
+            V1.0.0.5 date: 20 May 2019
+                - Updated rate-limit detection.
         .PARAMETER ItGlueApiKey
             ITGlue API key used to send data to ITGlue.
         .PARAMETER ItGlueUserCred
@@ -119,7 +121,7 @@ Function Get-ItGlueFlexibleAssetInstance {
 
                 Return "Error"
             }
-            If (($_.ErrorDetails.message | ConvertFrom-Json | Select-Object -ExpandProperty message) -eq "Endpoint request timed out") {
+            If (($_.ErrorDetails.message | ConvertFrom-Json | Select-Object -ExpandProperty errors).detail -eq "The request took too long to process and timed out.") {
                 $message = ("{0}: Rate limit exceeded, retrying in 60 seconds." -f (Get-Date -Format s), $MyInvocation.MyCommand, $_.Exception.Message)
                 If ($BlockLogging) { Write-Warning $message } Else { Write-Warning $message; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Warning -Message $message -EventId 5417 }
 

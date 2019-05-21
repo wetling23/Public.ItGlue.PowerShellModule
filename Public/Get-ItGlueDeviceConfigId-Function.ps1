@@ -7,6 +7,8 @@ Function Get-ItGlueDeviceConfig {
                 - Initial release.
             V1.0.0.1 date: 2 April 2019
                 - Updated in-line documentation.
+            V1.0.0.2 date: 20 May 2019
+                - Updated rate-limit detection.
         .PARAMETER ComputerName
             Enter the hostname of the desired device config, or "All" to retrieve all device configs.
         .PARAMETER ItGlueCustomerId
@@ -71,71 +73,154 @@ Function Get-ItGlueDeviceConfig {
     }
 
     $message = ("{0}: Beginning {1}." -f (Get-Date -Format s), $MyInvocation.MyCommand)
-    If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) {Write-Verbose $message} ElseIf ($PSBoundParameters['Verbose']) {Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417}
+    If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
-    If ($ItGlueApiKey) {
-        $header = @{"x-api-key" = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($ItGlueApiKey)); "content-type" = "application/vnd.api+json";}
-        $itGlueAuth = @{ItGlueApiKey = $ItGlueApiKey}
+    # Initialize variables.
+    $stopLoop = $false
+    Switch ($PsCmdlet.ParameterSetName) {
+        'ITGlueApiKey' {
+            $message = ("{0}: Setting header with API key." -f (Get-Date -Format s))
+            If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Information -Message $message -EventId 5417 }
+
+            $ItGlueApiHeader = @{"x-api-key" = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($ItGlueApiKey)); "content-type" = "application/vnd.api+json"; }
+        }
+        'ITGlueUserCred' {
+            $message = ("{0}: Setting header with user-access token." -f (Get-Date -Format s))
+            If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Information -Message $message -EventId 5417 }
+
+            $accessToken = Get-ItGlueJsonWebToken -Credential $ItGlueUserCred
+
+            $ItGlueUriBase = 'https://api-mobile-prod.itglue.com/api'
+            $ItGlueApiHeader = @{ }
+            $ItGlueApiHeader.add('cache-control', 'no-cache')
+            $ItGlueApiHeader.add('content-type', 'application/vnd.api+json')
+            $ItGlueApiHeader.add('authorization', "Bearer $(($accessToken.Content | ConvertFrom-Json).token)")
+        }
     }
-    Else {
-        $accessToken = Get-ItGlueJsonWebToken -Credential $ItGlueUserCred
 
-        $ItGlueUriBase = 'https://api-mobile-prod.itglue.com/api'
-        $header = @{}
-        $header.add('cache-control', 'no-cache')
-        $header.add('content-type', 'application/vnd.api+json')
-        $header.add('authorization', "Bearer $(($accessToken.Content | ConvertFrom-Json).token)")
-
-        $itGlueAuth = @{ItGlueUserCred = $ItGlueUserCred}
-    }
+    $message = ("{0}: Getting all devices configurations." -f (Get-Date -Format s))
+    If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
     If ($ComputerName -eq "All") {
-        $message = ("{0}: Getting all devices configurations." -f (Get-Date -Format s))
-        If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) {Write-Verbose $message} ElseIf ($PSBoundParameters['Verbose']) {Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417}
+        $loopCount = 0
+        Do {
+            Try {
+                $loopCount++
 
-        # Get all ITGlue device configurations.
-        Try {
-            $allDeviceCount = Invoke-RestMethod -Method GET -Headers $header -Uri "$ItGlueUriBase/configurations?page[size]=$ItGluePageSize" -ErrorAction Stop
+                $allDeviceCount = Invoke-RestMethod -Method GET -Headers $ItGlueApiHeader -Uri "$ItGlueUriBase/configurations?page[size]=$ItGluePageSize" -ErrorAction Stop
+
+                $stopLoop = $True
+            }
+            Catch {
+                If ($loopCount -ge $MaxLoopCount) {
+                    $message = ("{0}: Loop-count limit reached, {1} will exit." -f (Get-Date -Format s), $MyInvocation.MyCommand, $_.Exception.Message)
+                    If ($BlockLogging) { Write-Host $message -ForegroundColor Red } Else { Write-Host $message -ForegroundColor Red; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Error -Message $message -EventId 5417 }
+
+                    Return "Error"
+                }
+                If (($_.ErrorDetails.message | ConvertFrom-Json | Select-Object -ExpandProperty errors).detail -eq "The request took too long to process and timed out.") {
+                    $ItGluePageSize = $ItGluePageSize / 2
+
+                    $message = ("{0}: Rate limit exceeded, retrying in 60 seconds with `$ITGluePageSize == {1}." -f (Get-Date -Format s), $ItGluePageSize)
+                    If ($BlockLogging) { Write-Warning $message } Else { Write-Warning $message; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Warning -Message $message -EventId 5417 }
+
+                    Start-Sleep -Seconds 60
+                }
+                Else {
+                    $message = ("{0}: Unexpected error getting device configurations assets. To prevent errors, {1} will exit. PowerShell returned: {2}" -f (Get-Date -Format s), $MyInvocation.MyCommand, $_.Exception.Message)
+                    If ($BlockLogging) { Write-Error $message } Else { Write-Error $message; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Error -Message $message -EventId 5417 }
+
+                    Return "Error"
+                }
+            }
         }
-        Catch {
-            $message = ("{0}: Error getting all device configurations: {0}" -f (Get-Date -Format s), $_.Exception.Message)
-            If ($BlockLogging) {Write-Error $message} Else {Write-Error $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Error -Message $message -EventId 5417}
+        While ($stopLoop -eq $false)
 
-            Return
-        }
-
+        $loopCount = 0
         $deviceConfigurations = for ($i = 1; $i -le $($allDeviceCount.meta.'total-pages'); $i++) {
             $deviceConfigQueryBody = @{
-                "page[size]"              = $ItGluePageSize
-                "page[number]"            = $i
+                "page[size]"   = $ItGluePageSize
+                "page[number]" = $i
             }
 
-            $message = ("{0}: Getting page {1} of {2} of device configurations." -f (Get-Date -Format s), $i, $allDeviceCount.meta.'total-pages')
-            If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) {Write-Verbose $message} ElseIf ($PSBoundParameters['Verbose']) {Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417}
+            $message = ("Getting page {0} of {1} of the device configurations." -f $i, $allDeviceCount.meta.'total-pages')
+            If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Information -Message $message -EventId 5417 }
 
-            (Invoke-RestMethod -Method GET -Headers $header -Uri "$ItGlueUriBase/configurations" -Body $deviceConfigQueryBody).data
+            Do {
+                Try {
+                    $loopCount++
+
+                    Invoke-RestMethod -Method GET -Headers $ItGlueApiHeader -Uri "$ItGlueUriBase/configurations" -Body $deviceConfigQueryBody -ErrorAction Stop
+
+                    $stopLoop = $True
+                }
+                Catch {
+                    If ($loopCount -ge $MaxLoopCount) {
+                        $message = ("{0}: Loop-count limit reached, {1} will exit." -f (Get-Date -Format s), $MyInvocation.MyCommand, $_.Exception.Message)
+                        If ($BlockLogging) { Write-Host $message -ForegroundColor Red } Else { Write-Host $message -ForegroundColor Red; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Error -Message $message -EventId 5417 }
+
+                        Return "Error"
+                    }
+                    If (($_.ErrorDetails.message | ConvertFrom-Json | Select-Object -ExpandProperty errors).detail -eq "The request took too long to process and timed out.") {
+                        $ItGluePageSize = $ItGluePageSize / 2
+
+                        $message = ("{0}: Rate limit exceeded, retrying in 60 seconds with `$ITGluePageSize == {1}." -f (Get-Date -Format s), $ItGluePageSize)
+                        If ($BlockLogging) { Write-Warning $message } Else { Write-Warning $message; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Warning -Message $message -EventId 5417 }
+
+                        Start-Sleep -Seconds 60
+                    }
+                    Else {
+                        $message = ("{0}: Unexpected error getting flexible assets. To prevent errors, {1} will exit. PowerShell returned: {2}" -f (Get-Date -Format s), $MyInvocation.MyCommand, $_.Exception.Message)
+                        If ($BlockLogging) { Write-Error $message } Else { Write-Error $message; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Error -Message $message -EventId 5417 }
+
+                        Return "Error"
+                    }
+                }
+            }
+            While ($stopLoop -eq $false)
         }
 
         $message = ("{0}: Found {1} device configurations." -f (Get-Date -Format s), $deviceConfigurations.count)
-        If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) {Write-Verbose $message} ElseIf ($PSBoundParameters['Verbose']) {Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417}
+        If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
-        Return $deviceConfigurations
+        Return $deviceConfigurations.data
     }
     Else {
         If ($ItGlueCustomerId) {
             $message = ("Getting devices for customer with ID {0}." -f $ItGlueCustomerId)
-            If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) {Write-Verbose $message} ElseIf ($PSBoundParameters['Verbose']) {Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417}
+            If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
-            Try {
-                $allDeviceCount = Invoke-RestMethod -Method GET -Headers $header -Uri "$ItGlueUriBase/configurations?page[size]=$ItGluePageSize&filter[organization-id]=$ItGlueCustomerId" -ErrorAction Stop
+            $loopCount = 0
+            Do {
+                Try {
+                    $allDeviceCount = Invoke-RestMethod -Method GET -Headers $header -Uri "$ItGlueUriBase/configurations?page[size]=$ItGluePageSize&filter[organization-id]=$ItGlueCustomerId" -ErrorAction Stop
+                }
+                Catch {
+                    If ($loopCount -ge $MaxLoopCount) {
+                        $message = ("{0}: Loop-count limit reached, {1} will exit." -f (Get-Date -Format s), $MyInvocation.MyCommand, $_.Exception.Message)
+                        If ($BlockLogging) { Write-Host $message -ForegroundColor Red } Else { Write-Host $message -ForegroundColor Red; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Error -Message $message -EventId 5417 }
+
+                        Return "Error"
+                    }
+                    If (($_.ErrorDetails.message | ConvertFrom-Json | Select-Object -ExpandProperty errors).detail -eq "The request took too long to process and timed out.") {
+                        $ItGluePageSize = $ItGluePageSize / 2
+
+                        $message = ("{0}: Rate limit exceeded, retrying in 60 seconds with `$ITGluePageSize == {1}." -f (Get-Date -Format s), $ItGluePageSize)
+                        If ($BlockLogging) { Write-Warning $message } Else { Write-Warning $message; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Warning -Message $message -EventId 5417 }
+
+                        Start-Sleep -Seconds 60
+                    }
+                    Else {
+                        $message = ("{0}: Unexpected error getting flexible assets. To prevent errors, {1} will exit. PowerShell returned: {2}" -f (Get-Date -Format s), $MyInvocation.MyCommand, $_.Exception.Message)
+                        If ($BlockLogging) { Write-Error $message } Else { Write-Error $message; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Error -Message $message -EventId 5417 }
+
+                        Return "Error"
+                    }
+                }
             }
-            Catch {
-                $message = ("Error getting all device configurations: {0}" -f $_.Exception.Message)
-                If ($BlockLogging) {Write-Error $message} Else {Write-Error $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Error -Message $message -EventId 5417}
+            While ($stopLoop -eq $false)
 
-                Return
-            }
-
+            $loopCount = 0
             $deviceConfigurations = for ($i = 1; $i -le $($allDeviceCount.meta.'total-pages'); $i++) {
                 $deviceConfigQueryBody = @{
                     "page[size]"              = $ItGluePageSize
@@ -143,46 +228,138 @@ Function Get-ItGlueDeviceConfig {
                     "filter[organization-id]" = $ItGlueCustomerId
                 }
 
-                $message = ("Getting page {0} of {1} of device configurations." -f $i, $allDeviceCount.meta.'total-pages')
+                $message = ("Getting page {0} of {1} of the device configurations." -f $i, $allDeviceCount.meta.'total-pages')
+                If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Information -Message $message -EventId 5417 }
 
-                (Invoke-RestMethod -Method GET -Headers $header -Uri "$ItGlueUriBase/configurations" -Body $deviceConfigQueryBody).data
+                Do {
+                    Try {
+                        $loopCount++
+
+                        Invoke-RestMethod -Method GET -Headers $ItGlueApiHeader -Uri "$ItGlueUriBase/configurations" -Body $deviceConfigQueryBody -ErrorAction Stop
+
+                        $stopLoop = $True
+                    }
+                    Catch {
+                        If ($loopCount -ge $MaxLoopCount) {
+                            $message = ("{0}: Loop-count limit reached, {1} will exit." -f (Get-Date -Format s), $MyInvocation.MyCommand, $_.Exception.Message)
+                            If ($BlockLogging) { Write-Host $message -ForegroundColor Red } Else { Write-Host $message -ForegroundColor Red; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Error -Message $message -EventId 5417 }
+
+                            Return "Error"
+                        }
+                        If (($_.ErrorDetails.message | ConvertFrom-Json | Select-Object -ExpandProperty errors).detail -eq "The request took too long to process and timed out.") {
+                            $ItGluePageSize = $ItGluePageSize / 2
+
+                            $message = ("{0}: Rate limit exceeded, retrying in 60 seconds with `$ITGluePageSize == {1}." -f (Get-Date -Format s), $ItGluePageSize)
+                            If ($BlockLogging) { Write-Warning $message } Else { Write-Warning $message; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Warning -Message $message -EventId 5417 }
+
+                            Start-Sleep -Seconds 60
+                        }
+                        Else {
+                            $message = ("{0}: Unexpected error getting flexible assets. To prevent errors, {1} will exit. PowerShell returned: {2}" -f (Get-Date -Format s), $MyInvocation.MyCommand, $_.Exception.Message)
+                            If ($BlockLogging) { Write-Error $message } Else { Write-Error $message; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Error -Message $message -EventId 5417 }
+
+                            Return "Error"
+                        }
+                    }
+                }
+                While ($stopLoop -eq $false)
             }
-                $message = ("Filtering for devices matching {0}." -f $ComputerName)
 
-                $devices = $deviceConfigurations | Where-Object {$_.attributes.name -match $ComputerName}
+            $message = ("Filtering for devices matching {0}." -f $ComputerName)
+            If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
-                Return $devices
+            Return ($deviceConfigurations | Where-Object { $_.attributes.name -match $ComputerName }).data
+
+            #Return $deviceConfigurations.data
         }
         Else {
-            # Get all ITGlue device configurations then filter to match $ComputerName.
-            Try {
-                $allDeviceCount = Invoke-RestMethod -Method GET -Headers $header -Uri "$ItGlueUriBase/configurations?page[size]=$ItGluePageSize" -ErrorAction Stop
-            }
-            Catch {
-                $message = ("Error getting all device configurations: {0}" -f $_.Exception.Message)
-                If ($BlockLogging) {Write-Error $message} Else {Write-Error $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Error -Message $message -EventId 5417}
+            $stopLoop = $false
+            $loopCount = 0
+            Do {
+                Try {
+                    $loopCount++
 
-                Return
-            }
+                    $allDeviceCount = Invoke-RestMethod -Method GET -Headers $ItGlueApiHeader -Uri "$ItGlueUriBase/configurations?page[size]=$ItGluePageSize" -ErrorAction Stop
 
+                    $stopLoop = $True
+                }
+                Catch {
+                    If ($loopCount -ge $MaxLoopCount) {
+                        $message = ("{0}: Loop-count limit reached, {1} will exit." -f (Get-Date -Format s), $MyInvocation.MyCommand, $_.Exception.Message)
+                        If ($BlockLogging) { Write-Host $message -ForegroundColor Red } Else { Write-Host $message -ForegroundColor Red; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Error -Message $message -EventId 5417 }
+
+                        Return "Error"
+                    }
+                    If (($_.ErrorDetails.message | ConvertFrom-Json | Select-Object -ExpandProperty errors).detail -eq "The request took too long to process and timed out.") {
+                        $ItGluePageSize = $ItGluePageSize / 2
+
+                        $message = ("{0}: Rate limit exceeded, retrying in 60 seconds with `$ITGluePageSize == {1}." -f (Get-Date -Format s), $ItGluePageSize)
+                        If ($BlockLogging) { Write-Warning $message } Else { Write-Warning $message; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Warning -Message $message -EventId 5417 }
+
+                        Start-Sleep -Seconds 60
+                    }
+                    Else {
+                        $message = ("{0}: Unexpected error getting device configurations assets. To prevent errors, {1} will exit. PowerShell returned: {2}" -f (Get-Date -Format s), $MyInvocation.MyCommand, $_.Exception.Message)
+                        If ($BlockLogging) { Write-Error $message } Else { Write-Error $message; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Error -Message $message -EventId 5417 }
+
+                        Return "Error"
+                    }
+                }
+            }
+            While ($stopLoop -eq $false)
+
+            $stopLoop = $false
+            $loopCount = 0
             $deviceConfigurations = for ($i = 1; $i -le $($allDeviceCount.meta.'total-pages'); $i++) {
                 $deviceConfigQueryBody = @{
                     "page[size]"   = $ItGluePageSize
                     "page[number]" = $i
                 }
 
-                $message = ("Getting page {0} of {1} of device configurations." -f $i, $allDeviceCount.meta.'total-pages')
-                If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) {Write-Verbose $message} ElseIf ($PSBoundParameters['Verbose']) {Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417}
+                $message = ("Getting page {0} of {1} of the device configurations." -f $i, $allDeviceCount.meta.'total-pages')
+                If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Information -Message $message -EventId 5417 }
 
-                (Invoke-RestMethod -Method GET -Headers $header -Uri "$ItGlueUriBase/configurations" -Body $deviceConfigQueryBody).data
+                Do {
+                    Try {
+                        $loopCount++
+
+                        Invoke-RestMethod -Method GET -Headers $ItGlueApiHeader -Uri "$ItGlueUriBase/configurations" -Body $deviceConfigQueryBody -ErrorAction Stop
+
+                        $stopLoop = $True
+                    }
+                    Catch {
+                        If ($loopCount -ge $MaxLoopCount) {
+                            $message = ("{0}: Loop-count limit reached, {1} will exit." -f (Get-Date -Format s), $MyInvocation.MyCommand, $_.Exception.Message)
+                            If ($BlockLogging) { Write-Host $message -ForegroundColor Red } Else { Write-Host $message -ForegroundColor Red; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Error -Message $message -EventId 5417 }
+
+                            Return "Error"
+                        }
+                        If (($_.ErrorDetails.message | ConvertFrom-Json | Select-Object -ExpandProperty errors).detail -eq "The request took too long to process and timed out.") {
+                            $ItGluePageSize = $ItGluePageSize / 2
+
+                            $message = ("{0}: Rate limit exceeded, retrying in 60 seconds with `$ITGluePageSize == {1}." -f (Get-Date -Format s), $ItGluePageSize)
+                            If ($BlockLogging) { Write-Warning $message } Else { Write-Warning $message; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Warning -Message $message -EventId 5417 }
+
+                            Start-Sleep -Seconds 60
+                        }
+                        Else {
+                            $message = ("{0}: Unexpected error getting flexible assets. To prevent errors, {1} will exit. PowerShell returned: {2}" -f (Get-Date -Format s), $MyInvocation.MyCommand, $_.Exception.Message)
+                            If ($BlockLogging) { Write-Error $message } Else { Write-Error $message; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Error -Message $message -EventId 5417 }
+
+                            Return "Error"
+                        }
+                    }
+                }
+                While ($stopLoop -eq $false)
             }
 
+            $message = ("{0}: Found {1} device configurations." -f (Get-Date -Format s), $deviceConfigurations.count)
+            If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
+
             $message = ("Filtering for devices matching {0}." -f $ComputerName)
-            If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) {Write-Verbose $message} ElseIf ($PSBoundParameters['Verbose']) {Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417}
+            If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
-            $devices = $deviceConfigurations | Where-Object {$_.attributes.name -match $ComputerName}
-
-            Return $devices
+            Return ($deviceConfigurations.data | Where-Object { $_.attributes.name -match $ComputerName })
         }
     }
-} #1.0.0.1
+} #1.0.0.2
