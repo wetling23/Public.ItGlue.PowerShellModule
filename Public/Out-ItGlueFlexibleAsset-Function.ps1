@@ -19,6 +19,9 @@ Function Out-ItGlueFlexibleAsset {
                 - Added $MaxLoopCount parameter.
             V1.0.0.7 date: 20 May 2019
                 - Updated rate-limit detection.
+            V1.0.0.8 date: 24 May 2019
+                - Updated formatting.
+                - Updated date calculation.
         .PARAMETER Data
             Custom PSObject containing flexible asset properties.
         .PARAMETER HttpMethod
@@ -80,7 +83,7 @@ Function Out-ItGlueFlexibleAsset {
         $return = Add-EventLogSource -EventLogSource $EventLogSource
 
         If ($return -ne "Success") {
-            $message = ("{0}: Unable to add event source ({1}). No logging will be performed." -f (Get-Date -Format s), $EventLogSource)
+            $message = ("{0}: Unable to add event source ({1}). No logging will be performed." -f [datetime]::Now, $EventLogSource)
             Write-Verbose $message
 
             $BlockLogging = $True
@@ -92,7 +95,7 @@ Function Out-ItGlueFlexibleAsset {
     $loopCount = 0
     $stopLoop = $false
 
-    $message = ("{0}: Beginning {1}." -f (Get-Date -Format s), $MyInvocation.MyCommand)
+    $message = ("{0}: Beginning {1}." -f [datetime]::Now, $MyInvocation.MyCommand)
     If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
     # We are patching, but don't have a flexible asset instance to patch, request the ID.
@@ -100,19 +103,19 @@ Function Out-ItGlueFlexibleAsset {
         $FlexibleAssetInstanceId = Read-Host -Message "Enter a flexible asset instance ID"
     }
 
-    $message = ("{0}: Operating in the {1} parameterset." -f (Get-Date -Format s), $PsCmdlet.ParameterSetName)
+    $message = ("{0}: Operating in the {1} parameterset." -f [datetime]::Now, $PsCmdlet.ParameterSetName)
     If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
     # Initialize variables.
     Switch ($PsCmdlet.ParameterSetName) {
         'ITGlueApiKey' {
-            $message = ("{0}: Setting header with API key." -f (Get-Date -Format s))
+            $message = ("{0}: Setting header with API key." -f [datetime]::Now)
             If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
             $header = @{"x-api-key" = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($ItGlueApiKey)); "content-type" = "application/vnd.api+json"; }
         }
         'ITGlueUserCred' {
-            $message = ("{0}: Setting header with user-access token." -f (Get-Date -Format s))
+            $message = ("{0}: Setting header with user-access token." -f [datetime]::Now)
             If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
             $accessToken = Get-ItGlueJsonWebToken -Credential $ItGlueUserCred
@@ -127,19 +130,19 @@ Function Out-ItGlueFlexibleAsset {
 
     # Upload data to ITGlue.
     If ($HttpMethod -eq 'PATCH') {
-        $message = ("{0}: Preparing URL {1}." -f (Get-Date -Format s), "$ItGlueUriBase/flexible_assets/$FlexibleAssetInstanceId")
+        $message = ("{0}: Preparing URL {1}." -f [datetime]::Now, "$ItGlueUriBase/flexible_assets/$FlexibleAssetInstanceId")
         If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
         $uploadUrl = "$ItGlueUriBase/flexible_assets/$FlexibleAssetInstanceId"
     }
     Else {
-        $message = ("{0}: Preparing URL {1}." -f (Get-Date -Format s), "$ItGlueUriBase/flexible_assets")
+        $message = ("{0}: Preparing URL {1}." -f [datetime]::Now, "$ItGlueUriBase/flexible_assets")
         If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
         $uploadUrl = "$ItGlueUriBase/flexible_assets"
     }
 
-    $message = ("{0}: Attempting to uplaod data to ITGlue (method: {1})" -f (Get-Date -Format s), $HttpMethod)
+    $message = ("{0}: Attempting to uplaod data to ITGlue (method: {1})" -f [datetime]::Now, $HttpMethod)
     If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
     Do {
@@ -152,21 +155,21 @@ Function Out-ItGlueFlexibleAsset {
         }
         Catch {
             If ($loopCount -ge $MaxLoopCount) {
-                $message = ("{0}: Loop-count limit reached, {1} will exit." -f (Get-Date -Format s), $MyInvocation.MyCommand, $_.Exception.Message)
-                If ($BlockLogging) { Write-Host $message -ForegroundColor Red } Else { Write-Host $message -ForegroundColor Red; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Error -Message $message -EventId 5417 }
+                $message = ("{0}: Loop-count limit reached, {1} will exit." -f [datetime]::Now, $MyInvocation.MyCommand, $_.Exception.Message)
+                If ($BlockLogging) { Write-Error $message } Else { Write-Error $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Error -Message $message -EventId 5417 }
 
                 Return "Error"
             }
             If (($_.ErrorDetails.message | ConvertFrom-Json | Select-Object -ExpandProperty message -ErrorAction SilentlyContinue) -eq "Endpoint request timed out") {
                 $ItGluePageSize = $ItGluePageSize / 2
 
-                $message = ("{0}: Rate limit exceeded, retrying in 60 seconds with `$ITGluePageSize == {1}." -f (Get-Date -Format s), $ItGluePageSize)
+                $message = ("{0}: Rate limit exceeded, retrying in 60 seconds with `$ITGluePageSize == {1}." -f [datetime]::Now, $ItGluePageSize)
                 If ($BlockLogging) { Write-Warning $message } Else { Write-Warning $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Warning -Message $message -EventId 5417 }
 
                 Start-Sleep -Seconds 60
             }
             Else {
-                $message = ("{0}: Unexpected error uploading flexible asset. To prevent errors, {1} will exit. PowerShell returned: {2}" -f (Get-Date -Format s), $MyInvocation.MyCommand, $_.Exception.Message)
+                $message = ("{0}: Unexpected error uploading flexible asset. To prevent errors, {1} will exit. PowerShell returned: {2}" -f [datetime]::Now, $MyInvocation.MyCommand, $_.Exception.Message)
                 If ($BlockLogging) { Write-Error $message } Else { Write-Error $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Error -Message $message -EventId 5417 }
 
                 Return "Error"
@@ -174,4 +177,4 @@ Function Out-ItGlueFlexibleAsset {
         }
     }
     While ($stopLoop -eq $false)
-} #1.0.0.7
+} #1.0.0.8
