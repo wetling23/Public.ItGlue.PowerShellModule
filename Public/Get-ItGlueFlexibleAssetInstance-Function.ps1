@@ -110,7 +110,7 @@ Function Get-ItGlueFlexibleAssetInstance {
         Try {
             $loopCount++
 
-            $allExistingActiveDirectories = Invoke-RestMethod -Method GET -Headers $ItGlueApiHeader -Uri "$ItGlueUriBase/flexible_assets?page[size]=$ItGluePageSize" -Body (@{"filter[flexible_asset_type_id]" = "$FlexibleAssetId" }) -ErrorAction Stop
+            $allExistingAssetInstances = Invoke-RestMethod -Method GET -Headers $ItGlueApiHeader -Uri "$ItGlueUriBase/flexible_assets?page[size]=$ItGluePageSize" -Body (@{"filter[flexible_asset_type_id]" = "$FlexibleAssetId" }) -ErrorAction Stop
 
             $stopLoop = $True
         }
@@ -140,7 +140,8 @@ Function Get-ItGlueFlexibleAssetInstance {
     While ($stopLoop -eq $false)
 
     $loopCount = 0
-    $allExistingActiveDirectories = for ($i = 1; $i -le $($allExistingActiveDirectories.meta.'total-pages'); $i++) {
+    $stopLoop = $false
+    $allExistingAssetInstances = for ($i = 1; $i -le $($allExistingAssetInstances.meta.'total-pages'); $i++) {
         $adQueryBody = @{
             "page[size]"                     = $ItGluePageSize
             "page[number]"                   = $i
@@ -148,7 +149,7 @@ Function Get-ItGlueFlexibleAssetInstance {
             "filter[flexible_asset_type_id]" = "$FlexibleAssetId"
         }
 
-        $message = ("Getting page {0} of {1} of the requested flexible assets." -f $i, $($allExistingActiveDirectories.meta.'total-pages'))
+        $message = ("Getting page {0} of {1} of the requested flexible assets." -f $i, $($allExistingAssetInstances.meta.'total-pages'))
         If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Information -Message $message -EventId 5417 }
 
         Do {
@@ -167,7 +168,7 @@ Function Get-ItGlueFlexibleAssetInstance {
                     Return "Error"
                 }
                 If (($_.ErrorDetails.message | ConvertFrom-Json | Select-Object -ExpandProperty errors).detail -eq "The request took too long to process and timed out.") {
-                    $ItGluePageSize = $ItGluePageSize / 2
+                    #$ItGluePageSize = $ItGluePageSize / 2
 
                     $message = ("{0}: Rate limit exceeded, retrying in 60 seconds with `$ITGluePageSize == {1}." -f (Get-Date -Format s), $ItGluePageSize)
                     If ($BlockLogging) { Write-Warning $message } Else { Write-Warning $message; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Warning -Message $message -EventId 5417 }
@@ -185,5 +186,5 @@ Function Get-ItGlueFlexibleAssetInstance {
         While ($stopLoop -eq $false)
     }
 
-    Return $allExistingActiveDirectories
+    Return $allExistingAssetInstances
 } #1.0.0.5

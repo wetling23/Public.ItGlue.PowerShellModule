@@ -137,6 +137,7 @@ Function Get-ItGlueDeviceConfig {
         While ($stopLoop -eq $false)
 
         $loopCount = 0
+        $stopLoop = $false
         $deviceConfigurations = for ($i = 1; $i -le $($allDeviceCount.meta.'total-pages'); $i++) {
             $deviceConfigQueryBody = @{
                 "page[size]"   = $ItGluePageSize
@@ -162,8 +163,6 @@ Function Get-ItGlueDeviceConfig {
                         Return "Error"
                     }
                     If (($_.ErrorDetails.message | ConvertFrom-Json | Select-Object -ExpandProperty errors).detail -eq "The request took too long to process and timed out.") {
-                        $ItGluePageSize = $ItGluePageSize / 2
-
                         $message = ("{0}: Rate limit exceeded, retrying in 60 seconds with `$ITGluePageSize == {1}." -f (Get-Date -Format s), $ItGluePageSize)
                         If ($BlockLogging) { Write-Warning $message } Else { Write-Warning $message; Write-EventLog -LogName Application -Source $eventLogSource -EntryType Warning -Message $message -EventId 5417 }
 
@@ -221,6 +220,7 @@ Function Get-ItGlueDeviceConfig {
             While ($stopLoop -eq $false)
 
             $loopCount = 0
+            $stopLoop = $false
             $deviceConfigurations = for ($i = 1; $i -le $($allDeviceCount.meta.'total-pages'); $i++) {
                 $deviceConfigQueryBody = @{
                     "page[size]"              = $ItGluePageSize
