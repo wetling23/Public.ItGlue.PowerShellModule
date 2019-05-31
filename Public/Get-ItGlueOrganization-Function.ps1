@@ -12,6 +12,9 @@ Function Get-ItGlueOrganization {
             V1.0.0.3 date: 24 May 2019
                 - Updated formatting.
                 - Updated date calculation.
+            V1.0.0.4 date: 31 May 2019
+                - Updated log verbiage.
+                - Fixed bug in loop incrementing.
         .PARAMETER CustomerName
             Enter the name of the desired customer, or "All" to retrieve all organizations.
         .PARAMETER CustomerId
@@ -136,15 +139,13 @@ Function Get-ItGlueOrganization {
         }
         While ($stopLoop -eq $false)
 
-        $loopCount = 0
-        $stopLoop = $false
         $organizations = for ($i = 1; $i -le $($allOrgCount.meta.'total-pages'); $i++) {
             $orgQueryBody = @{
                 "page[size]"   = $ItGluePageSize
                 "page[number]" = $i
             }
 
-            $message = ("{0}: Getting page {1} of {2} of organization." -f [datetime]::Now, $i, $allOrgCount.meta.'total-pages')
+            $message = ("{0}: Getting page {1} of {2}." -f [datetime]::Now, $i, $allOrgCount.meta.'total-pages')
             If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
             $loopCount = 0
@@ -154,6 +155,8 @@ Function Get-ItGlueOrganization {
                     $loopCount++
 
                     (Invoke-RestMethod -Method GET -Headers $header -Uri "$ItGlueUriBase/organizations" -Body $orgQueryBody -ErrorAction Stop).data
+
+                    $stopLoop = $True
                 }
                 Catch {
                     If ($loopCount -ge $MaxLoopCount) {
@@ -178,7 +181,6 @@ Function Get-ItGlueOrganization {
                 }
             }
             While ($stopLoop -eq $false)
-
         }
 
         $message = ("{0}: Found {1} organizations." -f [datetime]::Now, $organizations.count)
@@ -187,7 +189,7 @@ Function Get-ItGlueOrganization {
         Return $organizations
     }
     ElseIf ($CustomerName) {
-        $message = ("{0}: Getting all organizations." -f [datetime]::Now)
+        $message = ("{0}: Getting {1}." -f [datetime]::Now, $CustomerName)
         If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
         # Get all ITGlue organizations.
@@ -233,7 +235,7 @@ Function Get-ItGlueOrganization {
                 "page[number]" = $i
             }
 
-            $message = ("{0}: Getting page {1} of {2} of organization." -f [datetime]::Now, $i, $allOrgCount.meta.'total-pages')
+            $message = ("{0}: Getting page {1} of {2}." -f [datetime]::Now, $i, $allOrgCount.meta.'total-pages')
             If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
             $loopCount = 0
@@ -242,6 +244,8 @@ Function Get-ItGlueOrganization {
                     $loopCount++
 
                     (Invoke-RestMethod -Method GET -Headers $header -Uri "$ItGlueUriBase/organizations" -Body $orgQueryBody -ErrorAction Stop).data
+
+                    $stopLoop = $True
                 }
                 Catch {
                     If ($loopCount -ge $MaxLoopCount) {
@@ -317,4 +321,4 @@ Function Get-ItGlueOrganization {
 
         Return $organizations
     }
-} #1.0.0.3
+} #1.0.0.4
