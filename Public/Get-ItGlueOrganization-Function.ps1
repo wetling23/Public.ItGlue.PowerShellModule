@@ -15,19 +15,21 @@ Function Get-ItGlueOrganization {
             V1.0.0.4 date: 31 May 2019
                 - Updated log verbiage.
                 - Fixed bug in loop incrementing.
+            V1.0.0.5 date: 11 July 2019
+            V1.0.0.6 date: 18 July 2019
+        .LINK
+            https://github.com/wetling23/Public.ItGlue.PowerShellModule
         .PARAMETER CustomerName
             Enter the name of the desired customer, or "All" to retrieve all organizations.
         .PARAMETER CustomerId
             Desired customer's ITGlue organization ID.
-        .PARAMETER ItGlueApiKey
+        .PARAMETER ApiKey
             ITGlue API key used to send data to ITGlue.
-        .PARAMETER ItGlueUserCred
+        .PARAMETER UserCred
             ITGlue credential object for the desired local account.
-        .PARAMETER MaxLoopCount
-            Number of times the cmdlet will wait, when ITGlue responds with 'rate limit reached'.
-        .PARAMETER ItGlueUriBase
+        .PARAMETER UriBase
             Base URL for the ITGlue API.
-        .PARAMETER ItGluePageSize
+        .PARAMETER PageSize
             Page size when requesting ITGlue resources via the API.
         .PARAMETER EventLogSource
             Default value is "ItGluePowerShellModule" Represents the name of the desired source, for Event Log logging.
@@ -38,32 +40,35 @@ Function Get-ItGlueOrganization {
 
             In this example, the cmdlet will get all of the organzations in the instance. Output is sent to the host session and event log.
         .EXAMPLE
-            PS C:\> Get-ItGlueOrganization -ItGlueUserCred (Get-Credential) -ComputerName company1 -BlockLogging -Verbose
+            PS C:\> Get-ItGlueOrganization -UserCred (Get-Credential) -ComputerName company1 -BlockLogging -Verbose
 
             In this example, the cmdlet will get all of the organzations in the instance, with the name "company1". Output will only be sent to the host session.
         .EXAMPLE
-            PS C:\> Get-ItGlueOrganization -ItGlueUserCred (Get-Credential) -CustomerId 123456 -BlockLogging -Verbose
+            PS C:\> Get-ItGlueOrganization -UserCred (Get-Credential) -CustomerId 123456 -BlockLogging -Verbose
 
             In this example, the cmdlet will get the customer with ID 123456, using the provided ITGlue user credentials. Output will only be sent to the host session.
     #>
-    [CmdletBinding(DefaultParameterSetName = 'ITGlueApiKey')]
+    [CmdletBinding(DefaultParameterSetName = 'ApiKey')]
     param (
         [ValidatePattern("^All$|^[a-z,A-Z,0-9]+")]
         [string]$CustomerName,
 
+        [Alias("ItGlueCustomerId")]
         [int64]$CustomerId,
 
-        [Parameter(ParameterSetName = 'ITGlueApiKey', Mandatory)]
-        [SecureString]$ItGlueApiKey,
+        [Alias("ItGlueApiKey")]
+        [Parameter(ParameterSetName = 'ApiKey', Mandatory)]
+        [SecureString]$ApiKey,
 
-        [Parameter(ParameterSetName = 'ITGlueUserCred', Mandatory)]
-        [System.Management.Automation.PSCredential]$ItGlueUserCred,
+        [Alias("ItGlueUserCred")]
+        [Parameter(ParameterSetName = 'UserCred', Mandatory)]
+        [System.Management.Automation.PSCredential]$UserCred,
 
-        [int]$MaxLoopCount = 5,
+        [Alias("ItGlueUriBase")]
+        [string]$UriBase = "https://api.itglue.com",
 
-        [string]$ItGlueUriBase = "https://api.itglue.com",
-
-        [int64]$ItGluePageSize = 1000,
+        [Alias("ItGluePageSize")]
+        [int64]$PageSize = 1000,
 
         [string]$EventLogSource = 'ItGluePowerShellModule',
 
@@ -85,52 +90,62 @@ Function Get-ItGlueOrganization {
     If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
     # Initialize variables.
+    $retrievedInstanceCollection = [System.Collections.Generic.List[PSObject]]::New()
     $stopLoop = $false
-    If ($ItGlueApiKey) {
-        $header = @{"x-api-key" = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($ItGlueApiKey)); "content-type" = "application/vnd.api+json"; }
+    Switch ($PsCmdlet.ParameterSetName) {
+        'ApiKey' {
+            $message = ("{0}: Setting header with API key." -f [datetime]::Now)
+            If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
+
+            $header = @{"x-api-key" = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($ApiKey)); "content-type" = "application/vnd.api+json"; }
+        }
+        'UserCred' {
+            $message = ("{0}: Setting header with user-access token." -f [datetime]::Now)
+            If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
+
+            $accessToken = Get-ItGlueJsonWebToken -Credential $UserCred
+
+            $UriBase = 'https://api-mobile-prod.itglue.com/api'
+            $header = @{ 'cache-control' = 'no-cache'; 'content-type' = 'application/vnd.api+json'; 'authorization' = "Bearer $(($accessToken.Content | ConvertFrom-Json).token)" }
+        }
     }
-    Else {
-        $accessToken = Get-ItGlueJsonWebToken -Credential $ItGlueUserCred
 
-        $ItGlueUriBase = 'https://api-mobile-prod.itglue.com/api'
-        $header = @{ }
-        $header.add('cache-control', 'no-cache')
-        $header.add('content-type', 'application/vnd.api+json')
-        $header.add('authorization', "Bearer $(($accessToken.Content | ConvertFrom-Json).token)")
+    If (-NOT(($CustomerName) -or ($CustomerId))) {
+        $message = ("{0}: No customer name or ID supplied. Defaulting to retrieving all organizations." -f [datetime]::Now, $MyInvocation.MyCommand)
+        If ($BlockLogging) { Write-Error $message } Else { Write-Error $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Error -Message $message -EventId 5417 }
 
+        $CustomerName = "All"
     }
 
     If ($CustomerName -eq "All") {
         $message = ("{0}: Getting all organizations." -f [datetime]::Now)
         If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
-        # Get all ITGlue organizations.
-        $loopCount = 0
         Do {
             Try {
-                $loopCount++
-
-                $allOrgCount = Invoke-RestMethod -Method GET -Headers $header -Uri "$ItGlueUriBase/organizations?page[size]=$ItGluePageSize" -ErrorAction Stop
+                $instancePageCount = Invoke-RestMethod -Method GET -Headers $header -Uri "$UriBase/organizations?page[size]=$PageSize" -ErrorAction Stop
 
                 $stopLoop = $True
             }
             Catch {
-                If ($loopCount -ge $MaxLoopCount) {
-                    $message = ("{0}: Loop-count limit reached, {1} will exit." -f [datetime]::Now, $MyInvocation.MyCommand, $_.Exception.Message)
-                    If ($BlockLogging) { Write-Error $message } Else { Write-Error $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Error -Message $message -EventId 5417 }
-
-                    Return "Error"
-                }
                 If (($_.ErrorDetails.message | ConvertFrom-Json | Select-Object -ExpandProperty errors).detail -eq "The request took too long to process and timed out.") {
-                    $ItGluePageSize = $ItGluePageSize / 2
+                    $PageSize = $PageSize / 2
 
-                    $message = ("{0}: Rate limit exceeded, retrying in 60 seconds with `$ITGluePageSize == {1}." -f [datetime]::Now, $ItGluePageSize)
+                    If ($PageSize -lt 1) {
+                        $message = ("{0}: Page size is less than 1, {1} will exit." -f [datetime]::Now, $MyInvocation.MyCommand)
+                        If ($BlockLogging) { Write-Error $message } Else { Write-Error $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Error -Message $message -EventId 5417 }
+
+                        Return "Error"
+                    }
+
+                    $message = ("{0}: Request timed out, retrying in 5 seconds with `$PageSize == {1}." -f [datetime]::Now, $PageSize)
                     If ($BlockLogging) { Write-Warning $message } Else { Write-Warning $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Warning -Message $message -EventId 5417 }
 
-                    Start-Sleep -Seconds 60
+                    Start-Sleep -Seconds 5
                 }
                 Else {
-                    $message = ("{0}: Unexpected error getting organizations. To prevent errors, {1} will exit. PowerShell returned: {2}" -f [datetime]::Now, $MyInvocation.MyCommand, $_.Exception.Message)
+                    $message = ("{0}: Unexpected error getting organizations. To prevent errors, {1} will exit. If present, the error detail is {2} PowerShell returned: {3}" -f `
+                            [datetime]::Now, $MyInvocation.MyCommand, (($_.ErrorDetails.message | ConvertFrom-Json -ErrorAction SilentlyContinue | Select-Object -ExpandProperty errors).detail), $_.Exception.Message)
                     If ($BlockLogging) { Write-Error $message } Else { Write-Error $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Error -Message $message -EventId 5417 }
 
                     Return "Error"
@@ -139,41 +154,46 @@ Function Get-ItGlueOrganization {
         }
         While ($stopLoop -eq $false)
 
-        $organizations = for ($i = 1; $i -le $($allOrgCount.meta.'total-pages'); $i++) {
-            $orgQueryBody = @{
-                "page[size]"   = $ItGluePageSize
-                "page[number]" = $i
+        $page = 1
+        Do {
+            $stopLoop = $False
+            $queryBody = @{
+                "page[size]"   = $PageSize
+                "page[number]" = $page
             }
 
-            $message = ("{0}: Getting page {1} of {2}." -f [datetime]::Now, $i, $allOrgCount.meta.'total-pages')
+            $message = ("Retrieved {0} of {1} instances." -f $retrievedInstanceCollection.data.Count, $($instancePageCount.meta.'total-count'))
             If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
-            $loopCount = 0
-            $stopLoop = $false
             Do {
                 Try {
-                    $loopCount++
-
-                    (Invoke-RestMethod -Method GET -Headers $header -Uri "$ItGlueUriBase/organizations" -Body $orgQueryBody -ErrorAction Stop).data
+                    (Invoke-RestMethod -Method GET -Headers $header -Uri "$UriBase/organizations" -Body $queryBody -ErrorAction Stop) | ForEach-Object { $retrievedInstanceCollection.Add($_) }
 
                     $stopLoop = $True
                 }
                 Catch {
-                    If ($loopCount -ge $MaxLoopCount) {
-                        $message = ("{0}: Loop-count limit reached, {1} will exit." -f [datetime]::Now, $MyInvocation.MyCommand, $_.Exception.Message)
-                        If ($BlockLogging) { Write-Error $message } Else { Write-Error $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Error -Message $message -EventId 5417 }
-
-                        Return "Error"
-                    }
                     If (($_.ErrorDetails.message | ConvertFrom-Json | Select-Object -ExpandProperty errors).detail -eq "The request took too long to process and timed out.") {
+                        $PageSize = [math]::Round($PageSize / 2)
+                        $queryBody = @{
+                            "page[size]"   = $PageSize
+                            "page[number]" = $page
+                        }
 
-                        $message = ("{0}: Rate limit exceeded, retrying in 60 seconds with `$ITGluePageSize == {1}." -f [datetime]::Now, $ItGluePageSize)
+                        If ($PageSize -lt 1) {
+                            $message = ("{0}: Page size is less than 1, {1} will exit." -f [datetime]::Now, $MyInvocation.MyCommand, $_.Exception.Message)
+                            If ($BlockLogging) { Write-Error $message } Else { Write-Error $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Error -Message $message -EventId 5417 }
+
+                            Return "Error"
+                        }
+
+                        $message = ("{0}: The request timed out, retrying in 5 seconds with `$PageSize == {1}." -f [datetime]::Now, $PageSize)
                         If ($BlockLogging) { Write-Warning $message } Else { Write-Warning $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Warning -Message $message -EventId 5417 }
 
-                        Start-Sleep -Seconds 60
+                        Start-Sleep -Seconds 5
                     }
                     Else {
-                        $message = ("{0}: Unexpected error getting organizations. To prevent errors, {1} will exit. PowerShell returned: {2}" -f [datetime]::Now, $MyInvocation.MyCommand, $_.Exception.Message)
+                        $message = ("{0}: Unexpected error getting instances. To prevent errors, {1} will exit. If present, the error detail is {2} PowerShell returned: {3}" -f `
+                                [datetime]::Now, $MyInvocation.MyCommand, (($_.ErrorDetails.message | ConvertFrom-Json -ErrorAction SilentlyContinue | Select-Object -ExpandProperty errors).detail), $_.Exception.Message)
                         If ($BlockLogging) { Write-Error $message } Else { Write-Error $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Error -Message $message -EventId 5417 }
 
                         Return "Error"
@@ -181,44 +201,45 @@ Function Get-ItGlueOrganization {
                 }
             }
             While ($stopLoop -eq $false)
-        }
 
-        $message = ("{0}: Found {1} organizations." -f [datetime]::Now, $organizations.count)
+            $page++
+        }
+        While ($retrievedInstanceCollection.data.Count -ne $instancePageCount.meta.'total-count')
+
+        $message = ("{0}: Found {1} organizations." -f [datetime]::Now, $retrievedInstanceCollection.data.count)
         If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
-        Return $organizations
+        Return $retrievedInstanceCollection.data
     }
     ElseIf ($CustomerName) {
         $message = ("{0}: Getting {1}." -f [datetime]::Now, $CustomerName)
         If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
-        # Get all ITGlue organizations.
-        $loopCount = 0
         Do {
             Try {
-                $loopCount++
-
-                $allOrgCount = Invoke-RestMethod -Method GET -Headers $header -Uri "$ItGlueUriBase/organizations?page[size]=$ItGluePageSize" -ErrorAction Stop
+                $instancePageCount = Invoke-RestMethod -Method GET -Headers $header -Uri "$UriBase/organizations?page[size]=$PageSize" -ErrorAction Stop
 
                 $stopLoop = $True
             }
             Catch {
-                If ($loopCount -ge $MaxLoopCount) {
-                    $message = ("{0}: Loop-count limit reached, {1} will exit." -f [datetime]::Now, $MyInvocation.MyCommand, $_.Exception.Message)
-                    If ($BlockLogging) { Write-Error $message } Else { Write-Error $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Error -Message $message -EventId 5417 }
-
-                    Return "Error"
-                }
                 If (($_.ErrorDetails.message | ConvertFrom-Json | Select-Object -ExpandProperty errors).detail -eq "The request took too long to process and timed out.") {
-                    $ItGluePageSize = $ItGluePageSize / 2
+                    $PageSize = $PageSize / 2
 
-                    $message = ("{0}: Rate limit exceeded, retrying in 60 seconds with `$ITGluePageSize == {1}." -f [datetime]::Now, $ItGluePageSize)
+                    If ($PageSize -lt 1) {
+                        $message = ("{0}: Page size is less than 1, {1} will exit." -f [datetime]::Now, $MyInvocation.MyCommand)
+                        If ($BlockLogging) { Write-Error $message } Else { Write-Error $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Error -Message $message -EventId 5417 }
+
+                        Return "Error"
+                    }
+
+                    $message = ("{0}: Request timed out, retrying in 5 seconds with `$PageSize == {1}." -f [datetime]::Now, $PageSize)
                     If ($BlockLogging) { Write-Warning $message } Else { Write-Warning $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Warning -Message $message -EventId 5417 }
 
-                    Start-Sleep -Seconds 60
+                    Start-Sleep -Seconds 5
                 }
                 Else {
-                    $message = ("{0}: Unexpected error getting organizations. To prevent errors, {1} will exit. PowerShell returned: {2}" -f [datetime]::Now, $MyInvocation.MyCommand, $_.Exception.Message)
+                    $message = ("{0}: Unexpected error getting organizations. To prevent errors, {1} will exit. If present, the error detail is {2} PowerShell returned: {3}" -f `
+                            [datetime]::Now, $MyInvocation.MyCommand, (($_.ErrorDetails.message | ConvertFrom-Json -ErrorAction SilentlyContinue | Select-Object -ExpandProperty errors).detail), $_.Exception.Message)
                     If ($BlockLogging) { Write-Error $message } Else { Write-Error $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Error -Message $message -EventId 5417 }
 
                     Return "Error"
@@ -227,43 +248,46 @@ Function Get-ItGlueOrganization {
         }
         While ($stopLoop -eq $false)
 
-        $loopCount = 0
-        $stopLoop = $false
-        $organizations = for ($i = 1; $i -le $($allOrgCount.meta.'total-pages'); $i++) {
-            $orgQueryBody = @{
-                "page[size]"   = $ItGluePageSize
-                "page[number]" = $i
+        $page = 1
+        Do {
+            $stopLoop = $False
+            $queryBody = @{
+                "page[size]"   = $PageSize
+                "page[number]" = $page
             }
 
-            $message = ("{0}: Getting page {1} of {2}." -f [datetime]::Now, $i, $allOrgCount.meta.'total-pages')
+            $message = ("Retrieved {0} of {1} instances." -f $retrievedInstanceCollection.data.Count, $($instancePageCount.meta.'total-count'))
             If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
-            $loopCount = 0
             Do {
                 Try {
-                    $loopCount++
-
-                    (Invoke-RestMethod -Method GET -Headers $header -Uri "$ItGlueUriBase/organizations" -Body $orgQueryBody -ErrorAction Stop).data
+                    (Invoke-RestMethod -Method GET -Headers $header -Uri "$UriBase/organizations" -Body $queryBody -ErrorAction Stop) | ForEach-Object { $retrievedInstanceCollection.Add($_) }
 
                     $stopLoop = $True
                 }
                 Catch {
-                    If ($loopCount -ge $MaxLoopCount) {
-                        $message = ("{0}: Loop-count limit reached, {1} will exit." -f [datetime]::Now, $MyInvocation.MyCommand, $_.Exception.Message)
-                        If ($BlockLogging) { Write-Error $message } Else { Write-Error $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Error -Message $message -EventId 5417 }
-
-                        Return "Error"
-                    }
                     If (($_.ErrorDetails.message | ConvertFrom-Json | Select-Object -ExpandProperty errors).detail -eq "The request took too long to process and timed out.") {
-                        $ItGluePageSize = $ItGluePageSize / 2
+                        $PageSize = [math]::Round($PageSize / 2)
+                        $queryBody = @{
+                            "page[size]"   = $PageSize
+                            "page[number]" = $page
+                        }
 
-                        $message = ("{0}: Rate limit exceeded, retrying in 60 seconds with `$ITGluePageSize == {1}." -f [datetime]::Now, $ItGluePageSize)
+                        If ($PageSize -lt 1) {
+                            $message = ("{0}: Page size is less than 1, {1} will exit." -f [datetime]::Now, $MyInvocation.MyCommand, $_.Exception.Message)
+                            If ($BlockLogging) { Write-Error $message } Else { Write-Error $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Error -Message $message -EventId 5417 }
+
+                            Return "Error"
+                        }
+
+                        $message = ("{0}: The request timed out, retrying in 5 seconds with `$PageSize == {1}." -f [datetime]::Now, $PageSize)
                         If ($BlockLogging) { Write-Warning $message } Else { Write-Warning $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Warning -Message $message -EventId 5417 }
 
-                        Start-Sleep -Seconds 60
+                        Start-Sleep -Seconds 5
                     }
                     Else {
-                        $message = ("{0}: Unexpected error getting organizations. To prevent errors, {1} will exit. PowerShell returned: {2}" -f [datetime]::Now, $MyInvocation.MyCommand, $_.Exception.Message)
+                        $message = ("{0}: Unexpected error getting instances. To prevent errors, {1} will exit. If present, the error detail is {2} PowerShell returned: {3}" -f `
+                                [datetime]::Now, $MyInvocation.MyCommand, (($_.ErrorDetails.message | ConvertFrom-Json -ErrorAction SilentlyContinue | Select-Object -ExpandProperty errors).detail), $_.Exception.Message)
                         If ($BlockLogging) { Write-Error $message } Else { Write-Error $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Error -Message $message -EventId 5417 }
 
                         Return "Error"
@@ -271,46 +295,37 @@ Function Get-ItGlueOrganization {
                 }
             }
             While ($stopLoop -eq $false)
-        }
 
-        $message = ("{0}: Found {1} organizations, filtering for {2}." -f [datetime]::Now, $organizations.count, $CustomerName)
+            $page++
+        }
+        While ($retrievedInstanceCollection.data.Count -ne $instancePageCount.meta.'total-count')
+
+        $message = ("{0}: Found {1} organizations, filtering for {2}." -f [datetime]::Now, $retrievedInstanceCollection.data.Count, $CustomerName)
         If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
-        $organizations = $organizations | Where-Object { $_.attributes.name -eq $CustomerName }
-
-        Return $organizations
+        Return = ($retrievedInstanceCollection.data | Where-Object { $_.attributes.name -eq $CustomerName })
     }
     ElseIf ($CustomerId) {
         $message = ("Getting organization with ID." -f $CustomerId)
         If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
-        $loopCount = 0
         $stopLoop = $false
         Do {
             Try {
-                $loopCount++
-
-                ($organizations = Invoke-RestMethod -Method GET -Headers $header -Uri "$ItGlueUriBase/organizations/$CustomerId" -ErrorAction Stop).data
+                (Invoke-RestMethod -Method GET -Headers $header -Uri "$UriBase/organizations/$CustomerId"-ErrorAction Stop) | ForEach-Object { $retrievedInstanceCollection.Add($_) }
 
                 $stopLoop = $True
             }
             Catch {
-                If ($loopCount -ge $MaxLoopCount) {
-                    $message = ("{0}: Loop-count limit reached, {1} will exit." -f [datetime]::Now, $MyInvocation.MyCommand, $_.Exception.Message)
+                If (($_.ErrorDetails.message | ConvertFrom-Json | Select-Object -ExpandProperty errors).detail -eq "The request took too long to process and timed out.") {
+                    $message = ("{0}: The request for {1} timed out. {2} will exit." -f [datetime]::Now, $CustomerId, $MyInvocation.MyCommand)
                     If ($BlockLogging) { Write-Error $message } Else { Write-Error $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Error -Message $message -EventId 5417 }
 
                     Return "Error"
                 }
-                If (($_.ErrorDetails.message | ConvertFrom-Json | Select-Object -ExpandProperty errors).detail -eq "The request took too long to process and timed out.") {
-                    $ItGluePageSize = $ItGluePageSize / 2
-
-                    $message = ("{0}: Rate limit exceeded, retrying in 60 seconds with `$ITGluePageSize == {1}." -f [datetime]::Now, $ItGluePageSize)
-                    If ($BlockLogging) { Write-Warning $message } Else { Write-Warning $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Warning -Message $message -EventId 5417 }
-
-                    Start-Sleep -Seconds 60
-                }
                 Else {
-                    $message = ("{0}: Unexpected error getting organizations. To prevent errors, {1} will exit. PowerShell returned: {2}" -f [datetime]::Now, $MyInvocation.MyCommand, $_.Exception.Message)
+                    $message = ("{0}: Unexpected error getting instances. To prevent errors, {1} will exit. If present, the error detail is {2} PowerShell returned: {3}" -f `
+                            [datetime]::Now, $MyInvocation.MyCommand, (($_.ErrorDetails.message | ConvertFrom-Json -ErrorAction SilentlyContinue | Select-Object -ExpandProperty errors).detail), $_.Exception.Message)
                     If ($BlockLogging) { Write-Error $message } Else { Write-Error $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Error -Message $message -EventId 5417 }
 
                     Return "Error"
@@ -319,6 +334,6 @@ Function Get-ItGlueOrganization {
         }
         While ($stopLoop -eq $false)
 
-        Return $organizations
+        Return $retrievedInstanceCollection
     }
-} #1.0.0.4
+} #1.0.0.6

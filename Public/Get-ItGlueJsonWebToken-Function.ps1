@@ -10,6 +10,7 @@ Function Get-ItGlueJsonWebToken {
             V1.0.0.2 date: 24 May 2019
                 - Updated formatting.
                 - Updated date calculation.
+            V1.0.0.3 date: 18 July 2019
         .PARAMETER Credential
             ITGlue credential object for the desired local account.
         .PARAMETER ItGlueUriBase
@@ -66,9 +67,7 @@ Function Get-ItGlueJsonWebToken {
     $user | Add-Member -Type NoteProperty -Name "user" -Value $attributes
 
     $url = "$ItGlueUriBase/login?generate_jwt=1&sso_disabled=1"
-    $headers = @{ }
-    $headers.add('cache-control', 'no-cache')
-    $headers.add('content-type', 'application/json')
+    $headers = @{ 'cache-control' = 'no-cache'; 'content-type' = 'application/json' }
 
     Try {
         $refreshToken = Invoke-WebRequest -UseBasicParsing -Uri $url -Headers $headers -Body ($user | ConvertTo-Json) -Method POST -ErrorAction Stop
@@ -99,4 +98,4 @@ Function Get-ItGlueJsonWebToken {
     }
 
     Return $accessToken
-} #1.0.0.2
+} #1.0.0.3

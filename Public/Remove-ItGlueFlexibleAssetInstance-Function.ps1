@@ -1,7 +1,7 @@
 Function Remove-ItGlueFlexibleAssetInstance {
     <#
         .DESCRIPTION
-            
+            Accept a flexible asset ID and delete it from ITGlue.
         .NOTES
             V1.0.0.0 date: 11 April 2019
                 - Initial release.
@@ -12,47 +12,46 @@ Function Remove-ItGlueFlexibleAssetInstance {
             V1.0.0.3 date: 24 May 2019
                 - Updated formatting.
                 - Updated date calculation.
-        .PARAMETER ItGlueApiKey
+            V1.0.0.4 date: 11 July 2019
+            V1.0.0.5 date: 18 July 2019
+        .LINK
+            https://github.com/wetling23/Public.ItGlue.PowerShellModule
+        .PARAMETER ApiKey
             ITGlue API key used to send data to ITGlue.
-        .PARAMETER ItGlueUserCred
+        .PARAMETER UserCred
             ITGlue credential object for the desired local account.
         .PARAMETER Id
             Identifier ID for the desired flexible asset type.
-        .PARAMETER MaxLoopCount
-            Number of times the cmdlet will wait, when ITGlue responds with 'rate limit reached'.
-        .PARAMETER ItGlueUriBase
+        .PARAMETER UriBase
             Base URL for the ITGlue API.
-        .PARAMETER ItGluePageSize
-            Page size when requesting ITGlue resources via the API. Note that retrieving flexible asset instances is computationally expensive, which may cause a timeout. When that happens, drop the page size down (a lot).
         .PARAMETER EventLogSource
             Default value is "ItGluePowerShellModule" Represents the name of the desired source, for Event Log logging.
         .PARAMETER BlockLogging
             When this switch is included, the code will write output only to the host and will not attempt to write to the Event Log.
         .EXAMPLE
-            PS C:\> Remove-ItGlueFlexibleAssetInstance -ItGlueApiKey ITG.XXXXXXXXXXXXX -Id 123456
+            PS C:\> Remove-ItGlueFlexibleAssetInstance -ApiKey ITG.XXXXXXXXXXXXX -Id 123456
 
             In this example, the cmdlet will remove the flexible asset with ID 123456, using the provided ITGlue API key. Output is written to the session host and the Windows event log.
         .EXAMPLE
-            PS C:\> Get-ItGlueFlexibleAssetInstance -FlexibleAssetId 123456 -ItGlueUserCred (Get-Credential) -BlockLogging -Verbose
+            PS C:\> Get-ItGlueFlexibleAssetInstance -Id 123456 -UserCred (Get-Credential) -BlockLogging -Verbose
 
             In this example, the cmdlet will remove the flexible asset with ID 123456, using the provided ITGlue credentials. Output is written to the session host only
     #>
-    [CmdletBinding(DefaultParameterSetName = 'ITGlueApiKey')]
+    [CmdletBinding(DefaultParameterSetName = 'ApiKey')]
     param (
-        [Parameter(ParameterSetName = 'ITGlueApiKey', Mandatory)]
-        [SecureString]$ItGlueApiKey,
+        [Alias("ItGlueApiKey")]
+        [Parameter(ParameterSetName = 'ApiKey', Mandatory)]
+        [SecureString]$ApiKey,
 
-        [Parameter(ParameterSetName = 'ITGlueUserCred', Mandatory)]
-        [System.Management.Automation.PSCredential]$ItGlueUserCred,
+        [Alias("ItGlueUserCred")]
+        [Parameter(ParameterSetName = 'UserCred', Mandatory)]
+        [System.Management.Automation.PSCredential]$UserCred,
 
         [Parameter(Mandatory = $True, ValueFromPipeline)]
         $Id,
 
-        [int]$MaxLoopCount = 5,
-
-        [string]$ItGlueUriBase = "https://api.itglue.com",
-
-        [int64]$ItGluePageSize = 1000,
+        [Alias("ItGlueUriBase")]
+        [string]$UriBase = "https://api.itglue.com",
 
         [string]$EventLogSource = 'ItGluePowerShellModule',
 
@@ -80,55 +79,42 @@ Function Remove-ItGlueFlexibleAssetInstance {
     $stopLoop = $false
     $httpVerb = 'DELETE'
     Switch ($PsCmdlet.ParameterSetName) {
-        'ITGlueApiKey' {
+        'ApiKey' {
             $message = ("{0}: Setting header with API key." -f [datetime]::Now)
             If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
             $header = @{"x-api-key" = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($ItGlueApiKey)); "content-type" = "application/vnd.api+json"; }
         }
-        'ITGlueUserCred' {
+        'UserCred' {
             $message = ("{0}: Setting header with user-access token." -f [datetime]::Now)
             If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
-            $accessToken = Get-ItGlueJsonWebToken -Credential $ItGlueUserCred
+            $accessToken = Get-ItGlueJsonWebToken -Credential $UserCred
 
             $ItGlueUriBase = 'https://api-mobile-prod.itglue.com/api'
-            $header = @{ }
-            $header.add('cache-control', 'no-cache')
-            $header.add('content-type', 'application/vnd.api+json')
-            $header.add('authorization', "Bearer $(($accessToken.Content | ConvertFrom-Json).token)")
+            $header = @{ 'cache-control' = 'no-cache'; 'content-type' = 'application/vnd.api+json'; 'authorization' = "Bearer $(($accessToken.Content | ConvertFrom-Json).token)" }
         }
     }
 
     $message = ("{0}: Attempting to delete the flexible asset with instance: {1}." -f [datetime]::Now, $Id)
     If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
-    $loopCount = 0
     Do {
         Try {
-            $loopCount++
-
             $response = Invoke-RestMethod -Method $httpVerb -Headers $header -Uri "$ItGlueUriBase/flexible_assets/$Id" -ErrorAction Stop
 
             $stopLoop = $True
         }
         Catch {
-            If ($loopCount -ge $MaxLoopCount) {
-                $message = ("{0}: Loop-count limit reached, {1} will exit." -f [datetime]::Now, $MyInvocation.MyCommand, $_.Exception.Message)
+            If (($_.ErrorDetails.message | ConvertFrom-Json | Select-Object -ExpandProperty errors).detail -eq "The request took too long to process and timed out.") {
+                $message = ("{0}: The request for {1} timed out. {2} will exit." -f [datetime]::Now, $CustomerId, $MyInvocation.MyCommand)
                 If ($BlockLogging) { Write-Error $message } Else { Write-Error $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Error -Message $message -EventId 5417 }
 
                 Return "Error"
             }
-            If (($_.ErrorDetails.message | ConvertFrom-Json | Select-Object -ExpandProperty message) -eq "Endpoint request timed out") {
-                $ItGluePageSize = $ItGluePageSize / 2
-
-                $message = ("{0}: Rate limit exceeded, retrying in 60 seconds with `$ITGluePageSize == {1}." -f [datetime]::Now, $ItGluePageSize)
-                If ($BlockLogging) { Write-Warning $message } Else { Write-Warning $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Warning -Message $message -EventId 5417 }
-
-                Start-Sleep -Seconds 60
-            }
             Else {
-                $message = ("{0}: Unexpected error getting flexible assets. To prevent errors, {1} will exit. PowerShell returned: {2}" -f [datetime]::Now, $MyInvocation.MyCommand, $_.Exception.Message)
+                $message = ("{0}: Unexpected error getting instances. To prevent errors, {1} will exit. If present, the error detail is {2} PowerShell returned: {3}" -f `
+                        [datetime]::Now, $MyInvocation.MyCommand, (($_.ErrorDetails.message | ConvertFrom-Json -ErrorAction SilentlyContinue | Select-Object -ExpandProperty errors).detail), $_.Exception.Message)
                 If ($BlockLogging) { Write-Error $message } Else { Write-Error $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Error -Message $message -EventId 5417 }
 
                 Return "Error"
@@ -138,4 +124,4 @@ Function Remove-ItGlueFlexibleAssetInstance {
     While ($stopLoop -eq $false)
 
     Return $response
-} #1.0.0.3
+} #1.0.0.5

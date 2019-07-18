@@ -22,38 +22,40 @@ Function Out-ItGlueFlexibleAsset {
             V1.0.0.8 date: 24 May 2019
                 - Updated formatting.
                 - Updated date calculation.
+            V1.0.0.9 date: 11 July 2019
+            V1.0.0.10 date: 18 July 2019
+        .LINK
+            https://github.com/wetling23/Public.ItGlue.PowerShellModule
         .PARAMETER Data
             Custom PSObject containing flexible asset properties.
         .PARAMETER HttpMethod
             Used to dictate whether the cmdlet should use POST or PATCH when sending data to ITGlue.
         .PARAMETER FlexibleAssetInstanceId
             When included, is used to update (PATCH) a specifc instance of a flexible asset.
-        .PARAMETER ItGlueApiKey
+        .PARAMETER ApiKey
             ITGlue API key used to send data to ITGlue.
-        .PARAMETER ItGlueUserCred
+        .PARAMETER UserCred
             ITGlue credential object for the desired local account.
-        .PARAMETER MaxLoopCount
-            Number of times the cmdlet will wait, when ITGlue responds with 'rate limit reached'.
-        .PARAMETER ItGlueUriBase
+        .PARAMETER UriBase
             Base URL for the ITGlue API.
         .PARAMETER EventLogSource
             Default value is "ItGluePowerShellModule" Represents the name of the desired source, for Event Log logging.
         .PARAMETER BlockLogging
             When this switch is included, the code will write output only to the host and will not attempt to write to the Event Log.
         .EXAMPLE
-            PS C:\> Out-ItGlueFlexibleAsset -Data $uploadData -HttpMethod POST -ItGlueApiKey ITG.XXXXXXXXXXXXX
+            PS C:\> Out-ItGlueFlexibleAsset -Data $uploadData -HttpMethod POST -ApiKey ITG.XXXXXXXXXXXXX
 
             In this example, the cmdlet will convert the contents of $uploadData to JSON to a new flexible asset, using the provided ITGlue API key. The cmdlet will try uploading 5 times. Output will be sent to the host session and to the Windows event log.
         .EXAMPLE
-            PS C:\> Out-ItGlueFlexibleAsset -Data $uploadData -HttpMethod POST -ItGlueApiKey ITG.XXXXXXXXXXXXX -MaxLoopCount 10
+            PS C:\> Out-ItGlueFlexibleAsset -Data $uploadData -HttpMethod POST -ApiKey ITG.XXXXXXXXXXXXX -MaxLoopCount 10
 
             In this example, the cmdlet will convert the contents of $uploadData to JSON to a new flexible asset, using the provided ITGlue API key. The cmdlet will try uploading 10 times. Output will be sent to the host session and to the Windows event log.
         .EXAMPLE
-            PS C:\> Out-ItGlueFlexibleAsset -Data $uploadData -HttpMethod PATCH -FlexibleAssetInstanceId 123456 -ItGlueUserCred (Get-Credential) -BlockLogging -Verbose
+            PS C:\> Out-ItGlueFlexibleAsset -Data $uploadData -HttpMethod PATCH -FlexibleAssetInstanceId 123456 -UserCred (Get-Credential) -BlockLogging -Verbose
 
             In this example, the cmdlet will convert the contents of $uploadData to JSON and update the flexible asset with ID 123456, using the provided ITGlue user credentials. Output will only be sent to the host session.
     #>
-    [CmdletBinding(DefaultParameterSetName = 'ITGlueApiKey')]
+    [CmdletBinding(DefaultParameterSetName = 'ApiKey')]
     param (
         [Parameter(Mandatory = $True)]
         [PSCustomObject]$Data,
@@ -64,13 +66,13 @@ Function Out-ItGlueFlexibleAsset {
 
         [int64]$FlexibleAssetInstanceId,
 
-        [Parameter(ParameterSetName = 'ITGlueApiKey', Mandatory)]
-        [SecureString]$ItGlueApiKey,
+        [Alias("ItGlueApiKey")]
+        [Parameter(ParameterSetName = 'ApiKey', Mandatory)]
+        [SecureString]$ApiKey,
 
-        [Parameter(ParameterSetName = 'ITGlueUserCred', Mandatory)]
-        [System.Management.Automation.PSCredential]$ItGlueUserCred,
-
-        [int]$MaxLoopCount = 5,
+        [Alias("ItGlueUserCred")]
+        [Parameter(ParameterSetName = 'UserCred', Mandatory)]
+        [System.Management.Automation.PSCredential]$UserCred,
 
         [string]$ItGlueUriBase = "https://api.itglue.com",
 
@@ -90,11 +92,6 @@ Function Out-ItGlueFlexibleAsset {
         }
     }
 
-    # Initialize variables.
-    $HttpMethod = $HttpMethod.ToUpper()
-    $loopCount = 0
-    $stopLoop = $false
-
     $message = ("{0}: Beginning {1}." -f [datetime]::Now, $MyInvocation.MyCommand)
     If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
@@ -107,28 +104,26 @@ Function Out-ItGlueFlexibleAsset {
     If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
     # Initialize variables.
+    $HttpMethod = $HttpMethod.ToUpper()
+    $stopLoop = $false
     Switch ($PsCmdlet.ParameterSetName) {
-        'ITGlueApiKey' {
+        'ApiKey' {
             $message = ("{0}: Setting header with API key." -f [datetime]::Now)
             If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
-            $header = @{"x-api-key" = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($ItGlueApiKey)); "content-type" = "application/vnd.api+json"; }
+            $header = @{"x-api-key" = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($ApiKey)); "content-type" = "application/vnd.api+json"; }
         }
-        'ITGlueUserCred' {
+        'UserCred' {
             $message = ("{0}: Setting header with user-access token." -f [datetime]::Now)
             If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
-            $accessToken = Get-ItGlueJsonWebToken -Credential $ItGlueUserCred
+            $accessToken = Get-ItGlueJsonWebToken -Credential $UserCred
 
             $ItGlueUriBase = 'https://api-mobile-prod.itglue.com/api'
-            $header = @{ }
-            $header.add('cache-control', 'no-cache')
-            $header.add('content-type', 'application/vnd.api+json')
-            $header.add('authorization', "Bearer $(($accessToken.Content | ConvertFrom-Json).token)")
+            $header = @{ 'cache-control' = 'no-cache'; 'content-type' = 'application/vnd.api+json'; 'authorization' = "Bearer $(($accessToken.Content | ConvertFrom-Json).token)" }
         }
     }
 
-    # Upload data to ITGlue.
     If ($HttpMethod -eq 'PATCH') {
         $message = ("{0}: Preparing URL {1}." -f [datetime]::Now, "$ItGlueUriBase/flexible_assets/$FlexibleAssetInstanceId")
         If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
@@ -147,29 +142,20 @@ Function Out-ItGlueFlexibleAsset {
 
     Do {
         Try {
-            $loopCount++
-
-            Invoke-RestMethod -Method $HttpMethod -Headers $header -Uri $uploadUrl -Body ($Data | ConvertTo-Json -Depth 10) -ErrorAction Stop
+            $response = Invoke-RestMethod -Method $HttpMethod -Headers $header -Uri $uploadUrl -Body ($Data | ConvertTo-Json -Depth 10) -ErrorAction Stop
 
             $stopLoop = $True
         }
         Catch {
-            If ($loopCount -ge $MaxLoopCount) {
-                $message = ("{0}: Loop-count limit reached, {1} will exit." -f [datetime]::Now, $MyInvocation.MyCommand, $_.Exception.Message)
+            If (($_.ErrorDetails.message | ConvertFrom-Json | Select-Object -ExpandProperty errors).detail -eq "The request took too long to process and timed out.") {
+                $message = ("{0}: The request for {1} timed out. {2} will exit." -f [datetime]::Now, $CustomerId, $MyInvocation.MyCommand)
                 If ($BlockLogging) { Write-Error $message } Else { Write-Error $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Error -Message $message -EventId 5417 }
 
                 Return "Error"
             }
-            If (($_.ErrorDetails.message | ConvertFrom-Json | Select-Object -ExpandProperty message -ErrorAction SilentlyContinue) -eq "Endpoint request timed out") {
-                $ItGluePageSize = $ItGluePageSize / 2
-
-                $message = ("{0}: Rate limit exceeded, retrying in 60 seconds with `$ITGluePageSize == {1}." -f [datetime]::Now, $ItGluePageSize)
-                If ($BlockLogging) { Write-Warning $message } Else { Write-Warning $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Warning -Message $message -EventId 5417 }
-
-                Start-Sleep -Seconds 60
-            }
             Else {
-                $message = ("{0}: Unexpected error uploading flexible asset. To prevent errors, {1} will exit. PowerShell returned: {2}" -f [datetime]::Now, $MyInvocation.MyCommand, $_.Exception.Message)
+                $message = ("{0}: Unexpected error uploading to ITGlue. To prevent errors, {1} will exit. If present, the error detail is: {2} PowerShell returned: {3}" -f `
+                        [datetime]::Now, $MyInvocation.MyCommand, (($_.ErrorDetails.message | ConvertFrom-Json -ErrorAction SilentlyContinue | Select-Object -ExpandProperty errors).detail), $_.Exception.Message)
                 If ($BlockLogging) { Write-Error $message } Else { Write-Error $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Error -Message $message -EventId 5417 }
 
                 Return "Error"
@@ -177,4 +163,6 @@ Function Out-ItGlueFlexibleAsset {
         }
     }
     While ($stopLoop -eq $false)
-} #1.0.0.8
+
+    $response
+} #1.0.0.10
