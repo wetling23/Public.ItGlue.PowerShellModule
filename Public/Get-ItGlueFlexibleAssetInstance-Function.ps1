@@ -3,62 +3,51 @@ Function Get-ItGlueFlexibleAssetInstance {
         .DESCRIPTION
             Gets all instances of a flexible asset, based on the ID.
         .NOTES
-            V1.0.0.0 date: 21 March 2019
-                - Initial release.
-            V1.0.0.1 date: 2 April 2019
-                - Updated in-line documentation.
-            V1.0.0.2 date: 5 April 2019
-                - Added support for timeout response and max loop count.
-            V1.0.0.3 date: 22 April 2019
-                - Fixed reference to specific flexible asset, in logging.
-            V1.0.0.4 date: 24 April 2019
-                - Added $MaxLoopCount parameter.
-            V1.0.0.5 date: 20 May 2019
-                - Updated rate-limit detection.
-            V1.0.0.6 date: 24 May 2019
-                - Updated formatting.
-                - Updated date calculation.
-        .PARAMETER ItGlueApiKey
+            V1.0.0.8 date: 2 July 2019
+            V1.0.0.9 date: 11 July 2019
+        .LINK
+            https://github.com/wetling23/Public.ItGlue.PowerShellModule
+        .PARAMETER ApiKey
             ITGlue API key used to send data to ITGlue.
-        .PARAMETER ItGlueUserCred
+        .PARAMETER UserCred
             ITGlue credential object for the desired local account.
         .PARAMETER FlexibleAssetId
             Identifier ID for the desired flexible asset type.
-        .PARAMETER MaxLoopCount
-            Number of times the cmdlet will wait, when ITGlue responds with 'rate limit reached'.
-        .PARAMETER ItGlueUriBase
+        .PARAMETER UriBase
             Base URL for the ITGlue API.
-        .PARAMETER ItGluePageSize
+        .PARAMETER PageSize
             Page size when requesting ITGlue resources via the API. Note that retrieving flexible asset instances is computationally expensive, which may cause a timeout. When that happens, drop the page size down (a lot).
         .PARAMETER EventLogSource
             Default value is "ItGluePowerShellModule" Represents the name of the desired source, for Event Log logging.
         .PARAMETER BlockLogging
             When this switch is included, the code will write output only to the host and will not attempt to write to the Event Log.
         .EXAMPLE
-            PS C:\> Get-ItGlueFlexibleAssetInstance -ItGlueApiKey ITG.XXXXXXXXXXXXX -FlexibleAssetId 123456
+            PS C:\> Get-ItGlueFlexibleAssetInstance -ApiKey ITG.XXXXXXXXXXXXX -FlexibleAssetId 123456
 
             In this example, the cmdlet will get all instances of flexible asset type 123456, using the provided ITGlue API key. Output will be sent to the host session and to the Windows event log.
         .EXAMPLE
-            PS C:\> Get-ItGlueFlexibleAssetInstance -FlexibleAssetId 123456 -ItGlueUserCred (Get-Credential) -BlockLogging -Verbose
+            PS C:\> Get-ItGlueFlexibleAssetInstance -FlexibleAssetId 123456 -Credential (Get-Credential) -BlockLogging -Verbose
 
             In this example, the cmdlet will get all instances of the flexible asset type 123456, using the provided ITGlue user credentials. Output will only be sent to the host session.
     #>
-    [CmdletBinding(DefaultParameterSetName = 'ITGlueApiKey')]
+    [CmdletBinding(DefaultParameterSetName = 'ApiKey')]
     param (
-        [Parameter(ParameterSetName = 'ITGlueApiKey', Mandatory)]
-        [SecureString]$ItGlueApiKey,
+        [Alias("ItGlueApiKey")]
+        [Parameter(ParameterSetName = 'ApiKey', Mandatory)]
+        [SecureString]$ApiKey,
 
-        [Parameter(ParameterSetName = 'ITGlueUserCred', Mandatory)]
-        [System.Management.Automation.PSCredential]$ItGlueUserCred,
+        [Alias("ItGlueUserCred")]
+        [Parameter(ParameterSetName = 'UserCred', Mandatory)]
+        [System.Management.Automation.PSCredential]$Credential,
 
         [Parameter(Mandatory = $True)]
         $FlexibleAssetId,
 
-        [int]$MaxLoopCount = 5,
+        [Alias("ItGlueUriBase")]
+        [string]$UriBase = "https://api.itglue.com",
 
-        [string]$ItGlueUriBase = "https://api.itglue.com",
-
-        [int64]$ItGluePageSize = 1000,
+        [Alias("ItGluePageSize")]
+        [int64]$PageSize = 1000,
 
         [string]$EventLogSource = 'ItGluePowerShellModule',
 
@@ -83,57 +72,57 @@ Function Get-ItGlueFlexibleAssetInstance {
     If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
     # Initialize variables.
+    $retrievedInstanceCollection = [System.Collections.Generic.List[PSObject]]::New()
     $stopLoop = $false
     Switch ($PsCmdlet.ParameterSetName) {
-        'ITGlueApiKey' {
+        'ApiKey' {
             $message = ("{0}: Setting header with API key." -f [datetime]::Now)
             If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
-            $ItGlueApiHeader = @{"x-api-key" = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($ItGlueApiKey)); "content-type" = "application/vnd.api+json"; }
+            $header = @{"x-api-key" = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($ApiKey)); "content-type" = "application/vnd.api+json"; }
         }
-        'ITGlueUserCred' {
+        'UserCred' {
             $message = ("{0}: Setting header with user-access token." -f [datetime]::Now)
             If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
-            $accessToken = Get-ItGlueJsonWebToken -Credential $ItGlueUserCred
+            $accessToken = Get-ItGlueJsonWebToken -Credential $Credential
 
-            $ItGlueUriBase = 'https://api-mobile-prod.itglue.com/api'
-            $ItGlueApiHeader = @{ }
-            $ItGlueApiHeader.add('cache-control', 'no-cache')
-            $ItGlueApiHeader.add('content-type', 'application/vnd.api+json')
-            $ItGlueApiHeader.add('authorization', "Bearer $(($accessToken.Content | ConvertFrom-Json).token)")
+            $UriBase = 'https://api-mobile-prod.itglue.com/api'
+            $header = @{ }
+            $header.add('cache-control', 'no-cache')
+            $header.add('content-type', 'application/vnd.api+json')
+            $header.add('authorization', "Bearer $(($accessToken.Content | ConvertFrom-Json).token)")
         }
     }
 
-    $message = ("Attempting to retrieve all the requested flexible assets from ITGlue.")
+    $message = ("Attempting to determine how many instances there are.")
     If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
-    $loopCount = 0
     Do {
         Try {
-            $loopCount++
-
-            $allExistingAssetInstances = Invoke-RestMethod -Method GET -Headers $ItGlueApiHeader -Uri "$ItGlueUriBase/flexible_assets?page[size]=$ItGluePageSize" -Body (@{"filter[flexible_asset_type_id]" = "$FlexibleAssetId" }) -ErrorAction Stop
+            $instanceTotalCount = Invoke-RestMethod -Method GET -Headers $header -Uri "$UriBase/flexible_assets?page[size]=$PageSize" -Body (@{"filter[flexible_asset_type_id]" = "$FlexibleAssetId" }) -ErrorAction Stop
 
             $stopLoop = $True
         }
         Catch {
-            If ($loopCount -ge $MaxLoopCount) {
-                $message = ("{0}: Loop-count limit reached, {1} will exit." -f [datetime]::Now, $MyInvocation.MyCommand, $_.Exception.Message)
-                If ($BlockLogging) { Write-Error $message } Else { Write-Error $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Error -Message $message -EventId 5417 }
-
-                Return "Error"
-            }
             If (($_.ErrorDetails.message | ConvertFrom-Json | Select-Object -ExpandProperty errors).detail -eq "The request took too long to process and timed out.") {
-                $ItGluePageSize = $ItGluePageSize / 2
+                $PageSize = $PageSize / 2
 
-                $message = ("{0}: Rate limit exceeded, retrying in 60 seconds with `$ITGluePageSize == {1}." -f [datetime]::Now, $ItGluePageSize)
+                If ($PageSize -lt 1) {
+                    $message = ("{0}: Page size is less than 1, {1} will exit." -f [datetime]::Now, $MyInvocation.MyCommand)
+                    If ($BlockLogging) { Write-Error $message } Else { Write-Error $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Error -Message $message -EventId 5417 }
+
+                    Return "Error"
+                }
+
+                $message = ("{0}: Request timed out, retrying in 5 seconds with `$PageSize == {1}." -f [datetime]::Now, $PageSize)
                 If ($BlockLogging) { Write-Warning $message } Else { Write-Warning $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Warning -Message $message -EventId 5417 }
 
-                Start-Sleep -Seconds 60
+                Start-Sleep -Seconds 5
             }
             Else {
-                $message = ("{0}: Unexpected error getting flexible assets. To prevent errors, {1} will exit. PowerShell returned: {2}" -f [datetime]::Now, $MyInvocation.MyCommand, $_.Exception.Message)
+                $message = ("{0}: Unexpected error getting device configurations assets. To prevent errors, {1} will exit. If present, the error detail is {2} PowerShell returned: {3}" -f `
+                        [datetime]::Now, $MyInvocation.MyCommand, (($_.ErrorDetails.message | ConvertFrom-Json -ErrorAction SilentlyContinue | Select-Object -ExpandProperty errors).detail), $_.Exception.Message)
                 If ($BlockLogging) { Write-Error $message } Else { Write-Error $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Error -Message $message -EventId 5417 }
 
                 Return "Error"
@@ -142,44 +131,48 @@ Function Get-ItGlueFlexibleAssetInstance {
     }
     While ($stopLoop -eq $false)
 
-    $loopCount = 0
-    $stopLoop = $false
-    $allExistingAssetInstances = for ($i = 1; $i -le $($allExistingAssetInstances.meta.'total-pages'); $i++) {
-        $adQueryBody = @{
-            "page[size]"                     = $ItGluePageSize
-            "page[number]"                   = $i
-            #"filter[organization_id]"        = "$ItGlueCustomerId" #This line can come out eventually. I just don't want to remove it yet. It is not required for this function (obviously).
+    $page = 1
+    Do {
+        $stopLoop = $False
+        $queryBody = @{
+            "page[size]"                     = $PageSize
+            "page[number]"                   = $page
             "filter[flexible_asset_type_id]" = "$FlexibleAssetId"
         }
 
-        $message = ("Getting page {0} of {1} of the requested flexible assets." -f $i, $($allExistingAssetInstances.meta.'total-pages'))
+        $message = ("Retrieved {0} of {1} instances." -f $retrievedInstanceCollection.Count, $($instanceTotalCount.meta.'total-count'))
         If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
         Do {
             Try {
-                $loopCount++
-
-                (Invoke-RestMethod -Method GET -Headers $ItGlueApiHeader -Uri "$ItGlueUriBase/flexible_assets" -Body $adQueryBody -ErrorAction Stop).data
+                (Invoke-RestMethod -Method GET -Headers $header -Uri "$UriBase/flexible_assets" -Body $queryBody -ErrorAction Stop).data | ForEach-Object { $retrievedInstanceCollection.Add($_) }
 
                 $stopLoop = $True
             }
             Catch {
-                If ($loopCount -ge $MaxLoopCount) {
-                    $message = ("{0}: Loop-count limit reached, {1} will exit." -f [datetime]::Now, $MyInvocation.MyCommand, $_.Exception.Message)
-                    If ($BlockLogging) { Write-Error $message } Else { Write-Error $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Error -Message $message -EventId 5417 }
-
-                    Return "Error"
-                }
                 If (($_.ErrorDetails.message | ConvertFrom-Json | Select-Object -ExpandProperty errors).detail -eq "The request took too long to process and timed out.") {
-                    #$ItGluePageSize = $ItGluePageSize / 2
+                    $PageSize = [math]::Round($PageSize / 2)
+                    $queryBody = @{
+                        "page[size]"                     = $PageSize
+                        "page[number]"                   = $page
+                        "filter[flexible_asset_type_id]" = "$FlexibleAssetId"
+                    }
 
-                    $message = ("{0}: Rate limit exceeded, retrying in 60 seconds with `$ITGluePageSize == {1}." -f [datetime]::Now, $ItGluePageSize)
+                    If ($PageSize -lt 1) {
+                        $message = ("{0}: Page size is less than 1, {1} will exit." -f [datetime]::Now, $MyInvocation.MyCommand, $_.Exception.Message)
+                        If ($BlockLogging) { Write-Error $message } Else { Write-Error $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Error -Message $message -EventId 5417 }
+
+                        Return "Error"
+                    }
+
+                    $message = ("{0}: The request timed out, retrying in 5 seconds with `$PageSize == {1}." -f [datetime]::Now, $PageSize)
                     If ($BlockLogging) { Write-Warning $message } Else { Write-Warning $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Warning -Message $message -EventId 5417 }
 
-                    Start-Sleep -Seconds 60
+                    Start-Sleep -Seconds 5
                 }
                 Else {
-                    $message = ("{0}: Unexpected error getting flexible assets. To prevent errors, {1} will exit. PowerShell returned: {2}" -f [datetime]::Now, $MyInvocation.MyCommand, $_.Exception.Message)
+                    $message = ("{0}: Unexpected error getting instances. To prevent errors, {1} will exit. If present, the error detail is {2} PowerShell returned: {3}" -f `
+                            [datetime]::Now, $MyInvocation.MyCommand, (($_.ErrorDetails.message | ConvertFrom-Json -ErrorAction SilentlyContinue | Select-Object -ExpandProperty errors).detail), $_.Exception.Message)
                     If ($BlockLogging) { Write-Error $message } Else { Write-Error $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Error -Message $message -EventId 5417 }
 
                     Return "Error"
@@ -187,7 +180,10 @@ Function Get-ItGlueFlexibleAssetInstance {
             }
         }
         While ($stopLoop -eq $false)
-    }
 
-    Return $allExistingAssetInstances
-} #1.0.0.6
+        $page++
+    }
+    While ($retrievedInstanceCollection.Count -ne $instanceTotalCount.meta.'total-count')
+
+    Return $retrievedInstanceCollection
+} #1.0.0.9
