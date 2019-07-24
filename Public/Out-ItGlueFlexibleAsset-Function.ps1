@@ -24,6 +24,7 @@ Function Out-ItGlueFlexibleAsset {
                 - Updated date calculation.
             V1.0.0.9 date: 11 July 2019
             V1.0.0.10 date: 18 July 2019
+            V1.0.0.11 date: 24 July 2019
         .LINK
             https://github.com/wetling23/Public.ItGlue.PowerShellModule
         .PARAMETER Data
@@ -137,7 +138,7 @@ Function Out-ItGlueFlexibleAsset {
         $uploadUrl = "$ItGlueUriBase/flexible_assets"
     }
 
-    $message = ("{0}: Attempting to uplaod data to ITGlue (method: {1})" -f [datetime]::Now, $HttpMethod)
+    $message = ("{0}: Attempting to upload data to ITGlue (method: {1})" -f [datetime]::Now, $HttpMethod)
     If (($BlockLogging) -AND ($PSBoundParameters['Verbose'])) { Write-Verbose $message } ElseIf ($PSBoundParameters['Verbose']) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
     Do {
@@ -165,4 +166,4 @@ Function Out-ItGlueFlexibleAsset {
     While ($stopLoop -eq $false)
 
     $response
-} #1.0.0.10
+} #1.0.0.11
