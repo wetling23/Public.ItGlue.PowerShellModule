@@ -5,6 +5,7 @@ Function Get-ItGlueFlexibleAssetInstance {
         .NOTES
             V1.0.0.8 date: 2 July 2019
             V1.0.0.9 date: 11 July 2019
+            V1.0.0.10 date: 18 July 2019
         .LINK
             https://github.com/wetling23/Public.ItGlue.PowerShellModule
         .PARAMETER ApiKey
@@ -88,10 +89,7 @@ Function Get-ItGlueFlexibleAssetInstance {
             $accessToken = Get-ItGlueJsonWebToken -Credential $Credential
 
             $UriBase = 'https://api-mobile-prod.itglue.com/api'
-            $header = @{ }
-            $header.add('cache-control', 'no-cache')
-            $header.add('content-type', 'application/vnd.api+json')
-            $header.add('authorization', "Bearer $(($accessToken.Content | ConvertFrom-Json).token)")
+            $header = @{ 'cache-control' = 'no-cache'; 'content-type' = 'application/vnd.api+json'; 'authorization' = "Bearer $(($accessToken.Content | ConvertFrom-Json).token)" }
         }
     }
 
@@ -100,7 +98,7 @@ Function Get-ItGlueFlexibleAssetInstance {
 
     Do {
         Try {
-            $instanceTotalCount = Invoke-RestMethod -Method GET -Headers $header -Uri "$UriBase/flexible_assets?page[size]=$PageSize" -Body (@{"filter[flexible_asset_type_id]" = "$FlexibleAssetId" }) -ErrorAction Stop
+            $instanceTotalCount = Invoke-webrequest -Method GET -Headers $header -Uri "$UriBase/flexible_assets?page[size]=$PageSize" -Body (@{"filter[flexible_asset_type_id]" = "$FlexibleAssetId" }) -ErrorAction Stop
 
             $stopLoop = $True
         }
@@ -145,7 +143,7 @@ Function Get-ItGlueFlexibleAssetInstance {
 
         Do {
             Try {
-                (Invoke-RestMethod -Method GET -Headers $header -Uri "$UriBase/flexible_assets" -Body $queryBody -ErrorAction Stop).data | ForEach-Object { $retrievedInstanceCollection.Add($_) }
+                (Invoke-webrequest -Method GET -Headers $header -Uri "$UriBase/flexible_assets" -Body $queryBody -ErrorAction Stop).data | ForEach-Object { $retrievedInstanceCollection.Add($_) }
 
                 $stopLoop = $True
             }
@@ -186,4 +184,4 @@ Function Get-ItGlueFlexibleAssetInstance {
     While ($retrievedInstanceCollection.Count -ne $instanceTotalCount.meta.'total-count')
 
     Return $retrievedInstanceCollection
-} #1.0.0.9
+} #1.0.0.10
