@@ -17,6 +17,7 @@ Function Get-ItGlueOrganization {
                 - Fixed bug in loop incrementing.
             V1.0.0.5 date: 11 July 2019
             V1.0.0.6 date: 18 July 2019
+            V1.0.0.7 date: 25 July 2019
         .LINK
             https://github.com/wetling23/Public.ItGlue.PowerShellModule
         .PARAMETER CustomerName
@@ -336,4 +337,4 @@ Function Get-ItGlueOrganization {
 
         Return $retrievedInstanceCollection
     }
-} #1.0.0.6
+} #1.0.0.7

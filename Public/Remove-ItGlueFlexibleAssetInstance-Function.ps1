@@ -14,6 +14,7 @@ Function Remove-ItGlueFlexibleAssetInstance {
                 - Updated date calculation.
             V1.0.0.4 date: 11 July 2019
             V1.0.0.5 date: 18 July 2019
+            V1.0.0.6 date: 25 July 2019
         .LINK
             https://github.com/wetling23/Public.ItGlue.PowerShellModule
         .PARAMETER ApiKey
@@ -124,4 +125,4 @@ Function Remove-ItGlueFlexibleAssetInstance {
     While ($stopLoop -eq $false)
 
     Return $response
-} #1.0.0.5
+} #1.0.0.6

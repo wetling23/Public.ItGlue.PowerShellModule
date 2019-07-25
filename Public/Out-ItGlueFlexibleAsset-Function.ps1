@@ -25,6 +25,7 @@ Function Out-ItGlueFlexibleAsset {
             V1.0.0.9 date: 11 July 2019
             V1.0.0.10 date: 18 July 2019
             V1.0.0.11 date: 24 July 2019
+            V1.0.0.12 date: 25 July 2019
         .LINK
             https://github.com/wetling23/Public.ItGlue.PowerShellModule
         .PARAMETER Data
@@ -166,4 +167,4 @@ Function Out-ItGlueFlexibleAsset {
     While ($stopLoop -eq $false)
 
     $response
-} #1.0.0.11
+} #1.0.0.12

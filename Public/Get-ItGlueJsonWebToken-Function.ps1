@@ -11,6 +11,7 @@ Function Get-ItGlueJsonWebToken {
                 - Updated formatting.
                 - Updated date calculation.
             V1.0.0.3 date: 18 July 2019
+            V1.0.0.4 date: 25 July 2019
         .PARAMETER Credential
             ITGlue credential object for the desired local account.
         .PARAMETER ItGlueUriBase
@@ -98,4 +99,4 @@ Function Get-ItGlueJsonWebToken {
     }
 
     Return $accessToken
-} #1.0.0.3
+} #1.0.0.4
