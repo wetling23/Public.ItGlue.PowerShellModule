@@ -7,6 +7,7 @@ Function Get-ItGlueFlexibleAssetInstance {
             V1.0.0.9 date: 11 July 2019
             V1.0.0.10 date: 18 July 2019
             V1.0.0.11 date: 25 July 2019
+            V1.0.0.12 date: 30 July 2019
         .LINK
             https://github.com/wetling23/Public.ItGlue.PowerShellModule
         .PARAMETER ApiKey
@@ -99,11 +100,11 @@ Function Get-ItGlueFlexibleAssetInstance {
 
     Do {
         Try {
-            $instanceTotalCount = Invoke-webrequest -Method GET -Headers $header -Uri "$UriBase/flexible_assets?page[size]=$PageSize" -Body (@{"filter[flexible_asset_type_id]" = "$FlexibleAssetId" }) -ErrorAction Stop
+            $instanceTotalCount = Invoke-RestMethod -Method GET -Headers $header -Uri "$UriBase/flexible_assets?page[size]=$PageSize" -Body (@{"filter[flexible_asset_type_id]" = "$FlexibleAssetId" }) -ErrorAction Stop
 
             $stopLoop = $True
 
-            $message = ("{0}: {1} identified {2} instances." -f [datetime]::Now, $MyInvocation.MyCommand, $($instancePageCount.meta.'total-count'))
+            $message = ("{0}: {1} identified {2} instances." -f [datetime]::Now, $MyInvocation.MyCommand, $($instanceTotalCount.meta.'total-count'))
             If (($BlockLogging) -AND (($PSBoundParameters['Verbose']) -or $VerbosePreference -eq 'Continue')) { Write-Verbose $message } ElseIf (($PSBoundParameters['Verbose']) -or ($VerbosePreference = 'Continue')) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
         }
         Catch {
@@ -133,7 +134,7 @@ Function Get-ItGlueFlexibleAssetInstance {
     }
     While ($stopLoop -eq $false)
 
-    If (-NOT($($instancePageCount.meta.'total-count') -gt 0)) {
+    If (-NOT($($instanceTotalCount.meta.'total-count') -gt 0)) {
         $message = ("{0}: Too few instances were identified. To prevent errors, {1} will exit." -f [datetime]::Now, $MyInvocation.MyCommand)
         If (($BlockLogging) -AND (($PSBoundParameters['Verbose']) -or $VerbosePreference -eq 'Continue')) { Write-Verbose $message } ElseIf (($PSBoundParameters['Verbose']) -or ($VerbosePreference = 'Continue')) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
@@ -154,7 +155,7 @@ Function Get-ItGlueFlexibleAssetInstance {
 
         Do {
             Try {
-                (Invoke-webrequest -Method GET -Headers $header -Uri "$UriBase/flexible_assets" -Body $queryBody -ErrorAction Stop).data | ForEach-Object { $retrievedInstanceCollection.Add($_) }
+                (Invoke-RestMethod -Method GET -Headers $header -Uri "$UriBase/flexible_assets" -Body $queryBody -ErrorAction Stop).data | ForEach-Object { $retrievedInstanceCollection.Add($_) }
 
                 $stopLoop = $True
             }
@@ -195,4 +196,4 @@ Function Get-ItGlueFlexibleAssetInstance {
     While ($retrievedInstanceCollection.Count -ne $instanceTotalCount.meta.'total-count')
 
     Return $retrievedInstanceCollection
-} #1.0.0.11
+} #1.0.0.12
