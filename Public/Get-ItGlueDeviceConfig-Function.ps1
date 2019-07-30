@@ -104,7 +104,6 @@ Function Get-ItGlueDeviceConfig {
         }
     }
 
-    write-host ("`$CustomerId is: {0}" -f $CustomerId)
     If ($ComputerName -eq "All") {
         $message = ("{0}: Getting all devices configurations." -f [datetime]::Now)
         If (($BlockLogging) -AND (($PSBoundParameters['Verbose']) -or $VerbosePreference -eq 'Continue')) { Write-Verbose $message } ElseIf (($PSBoundParameters['Verbose']) -or ($VerbosePreference = 'Continue')) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
