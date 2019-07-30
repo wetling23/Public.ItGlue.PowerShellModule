@@ -209,7 +209,7 @@ Function Get-ItGlueDeviceConfig {
 
         Return $retrievedInstanceCollection.data
     }
-    ElseIf ($CustomerId -as [int64]) {
+    ElseIf ($CustomerId -ne $null) {
         $message = ("{0}: Getting devices for customer with ID {1}." -f [datetime]::Now, $CustomerId)
         If (($BlockLogging) -AND (($PSBoundParameters['Verbose']) -or $VerbosePreference -eq 'Continue')) { Write-Verbose $message } ElseIf (($PSBoundParameters['Verbose']) -or ($VerbosePreference = 'Continue')) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
@@ -326,7 +326,7 @@ Function Get-ItGlueDeviceConfig {
             Return $retrievedInstanceCollection.data
         }
     }
-    ElseIf ($ComputerName) {
+    ElseIf ($ComputerName -ne $null) {
         $message = ("{0}: Getting all devices configurations with the hostname matching {1}." -f [datetime]::Now, $ComputerName)
         If (($BlockLogging) -AND (($PSBoundParameters['Verbose']) -or $VerbosePreference -eq 'Continue')) { Write-Verbose $message } ElseIf (($PSBoundParameters['Verbose']) -or ($VerbosePreference = 'Continue')) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
