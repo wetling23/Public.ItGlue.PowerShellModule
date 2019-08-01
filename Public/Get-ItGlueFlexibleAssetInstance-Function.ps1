@@ -96,7 +96,10 @@ Function Get-ItGlueFlexibleAssetInstance {
         }
     }
 
-    $message = ("Attempting to determine how many instances there are to be retrieved.")
+    $message = ("{0}: Attempting to determine how many instances there are to be retrieved." -f [datetime]::Now)
+    If (($BlockLogging) -AND (($PSBoundParameters['Verbose']) -or $VerbosePreference -eq 'Continue')) { Write-Verbose $message } ElseIf (($PSBoundParameters['Verbose']) -or ($VerbosePreference = 'Continue')) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
+
+    $message = ("{0}: Headers: {1}`r`nBody: {2}`r`nUrl: {3}" -f [datetime]::Now, ($header | Out-String), ((@{"filter[flexible_asset_type_id]" = "$FlexibleAssetId" }) | Out-String), "$UriBase/flexible_assets?page[size]=$PageSize")
     If (($BlockLogging) -AND (($PSBoundParameters['Verbose']) -or $VerbosePreference -eq 'Continue')) { Write-Verbose $message } ElseIf (($PSBoundParameters['Verbose']) -or ($VerbosePreference = 'Continue')) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
     Do {
@@ -150,6 +153,9 @@ Function Get-ItGlueFlexibleAssetInstance {
             "page[number]"                   = $page
             "filter[flexible_asset_type_id]" = "$FlexibleAssetId"
         }
+
+        $message = ("{0}: Headers: {1}`r`nBody: {2}`r`nUrl: {3}" -f [datetime]::Now, ($header | Out-String), ($queryBody | Out-String), "$UriBase/flexible_assets")
+        If (($BlockLogging) -AND (($PSBoundParameters['Verbose']) -or $VerbosePreference -eq 'Continue')) { Write-Verbose $message } ElseIf (($PSBoundParameters['Verbose']) -or ($VerbosePreference = 'Continue')) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
         $message = ("Retrieved {0} of {1} instances." -f $retrievedInstanceCollection.Count, $($instanceTotalCount.meta.'total-count'))
         If (($BlockLogging) -AND (($PSBoundParameters['Verbose']) -or $VerbosePreference -eq 'Continue')) { Write-Verbose $message } ElseIf (($PSBoundParameters['Verbose']) -or ($VerbosePreference = 'Continue')) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
