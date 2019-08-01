@@ -96,7 +96,7 @@ Function Get-ItGlueFlexibleAssetInstance {
         }
     }
 
-    $message = ("Attempting to determine how many instances there are.")
+    $message = ("Attempting to determine how many instances there are to be retrieved.")
     If (($BlockLogging) -AND (($PSBoundParameters['Verbose']) -or $VerbosePreference -eq 'Continue')) { Write-Verbose $message } ElseIf (($PSBoundParameters['Verbose']) -or ($VerbosePreference = 'Continue')) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
     Do {
