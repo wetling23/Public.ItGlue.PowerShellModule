@@ -206,5 +206,5 @@ Function Get-ItGlueFlexibleAssetInstance {
     }
     While ($retrievedInstanceCollection.Count -ne $instanceTotalCount.meta.'total-count')
 
-    Return $retrievedInstanceCollection | Select-Object -Unique
+    Return $retrievedInstanceCollection
 } #1.0.0.14
