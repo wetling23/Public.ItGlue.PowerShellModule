@@ -8,6 +8,7 @@ Function Get-ItGlueFlexibleAssetInstance {
             V1.0.0.10 date: 18 July 2019
             V1.0.0.11 date: 25 July 2019
             V1.0.0.12 date: 30 July 2019
+            V1.0.0.13 date: 1 August 2019
         .LINK
             https://github.com/wetling23/Public.ItGlue.PowerShellModule
         .PARAMETER ApiKey
@@ -161,10 +162,10 @@ Function Get-ItGlueFlexibleAssetInstance {
             }
             Catch {
                 If (($_.ErrorDetails.message | ConvertFrom-Json | Select-Object -ExpandProperty errors).detail -eq "The request took too long to process and timed out.") {
-                    $PageSize = [math]::Round($PageSize / 2)
+                    $PageSize = $PageSize / 2
                     $queryBody = @{
                         "page[size]"                     = $PageSize
-                        "page[number]"                   = $page
+                        "page[number]"                   = 1
                         "filter[flexible_asset_type_id]" = "$FlexibleAssetId"
                     }
 
@@ -172,8 +173,17 @@ Function Get-ItGlueFlexibleAssetInstance {
                         $message = ("{0}: Page size is less than 1, {1} will exit." -f [datetime]::Now, $MyInvocation.MyCommand, $_.Exception.Message)
                         If ($BlockLogging) { Write-Error $message } Else { Write-Error $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Error -Message $message -EventId 5417 }
 
+                        # Sometimes, the function returns instance values and the string, "error". Doing this should prevent that.
+                        $retrievedInstanceCollection = "Error"
+
                         Return "Error"
                     }
+
+                    # This is just stupid. Too bad ITGlue's API is unreliable :(
+                    $message = ("Resetting `$retrievedInstanceCollection.")
+                    If (($BlockLogging) -AND (($PSBoundParameters['Verbose']) -or $VerbosePreference -eq 'Continue')) { Write-Verbose $message } ElseIf (($PSBoundParameters['Verbose']) -or ($VerbosePreference = 'Continue')) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
+
+                    $retrievedInstanceCollection = $null
 
                     $message = ("{0}: The request timed out, retrying in 5 seconds with `$PageSize == {1}." -f [datetime]::Now, $PageSize)
                     If ($BlockLogging) { Write-Warning $message } Else { Write-Warning $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Warning -Message $message -EventId 5417 }
@@ -196,4 +206,4 @@ Function Get-ItGlueFlexibleAssetInstance {
     While ($retrievedInstanceCollection.Count -ne $instanceTotalCount.meta.'total-count')
 
     Return $retrievedInstanceCollection
-} #1.0.0.12
+} #1.0.0.13
