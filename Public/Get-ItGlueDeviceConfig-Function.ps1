@@ -263,7 +263,7 @@ Function Get-ItGlueDeviceConfig {
                 "filter[organization-id]" = $CustomerId
             }
 
-            $message = ("{0}: Body: {1}`r`nUrl: {2}" -f [datetime]::Now, , ($queryBody | Out-String), "$UriBase/flexible_assets")
+            $message = ("{0}: Body: {1}`r`nUrl: {2}" -f [datetime]::Now, ($queryBody | Out-String), "$UriBase/flexible_assets")
             If (($BlockLogging) -AND (($PSBoundParameters['Verbose']) -or $VerbosePreference -eq 'Continue')) { Write-Verbose $message } ElseIf (($PSBoundParameters['Verbose']) -or ($VerbosePreference = 'Continue')) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
             $message = ("{0}: Retrieved {1} of {2} instances." -f [datetime]::Now, $retrievedInstanceCollection.data.Count, $($instanceTotalCount.meta.'total-count'))
@@ -320,7 +320,7 @@ Function Get-ItGlueDeviceConfig {
             $page++
 
             If (($instanceTotalCount.meta.'total-count' -eq 1) -and ($retrievedInstanceCollection)) {
-                $message = ("There is only one instance, getting ready to return it.")
+                $message = ("{0}: There is only one instance, getting ready to return it." -f [datetime]::Now)
                 If (($BlockLogging) -AND (($PSBoundParameters['Verbose']) -or $VerbosePreference -eq 'Continue')) { Write-Verbose $message } ElseIf (($PSBoundParameters['Verbose']) -or ($VerbosePreference = 'Continue')) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
                 $onlyOneInstance = $true
@@ -389,7 +389,7 @@ Function Get-ItGlueDeviceConfig {
                 "page[number]" = $page
             }
 
-            $message = ("{0}: Body: {1}`r`nUrl: {2}" -f [datetime]::Now, , ($queryBody | Out-String), "$UriBase/flexible_assets")
+            $message = ("{0}: Body: {1}`r`nUrl: {2}" -f [datetime]::Now, ($queryBody | Out-String), "$UriBase/flexible_assets")
             If (($BlockLogging) -AND (($PSBoundParameters['Verbose']) -or $VerbosePreference -eq 'Continue')) { Write-Verbose $message } ElseIf (($PSBoundParameters['Verbose']) -or ($VerbosePreference = 'Continue')) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
             $message = ("{0}: Retrieved {1} of {2} instances." -f [datetime]::Now, $retrievedInstanceCollection.data.Count, $($instanceTotalCount.meta.'total-count'))
