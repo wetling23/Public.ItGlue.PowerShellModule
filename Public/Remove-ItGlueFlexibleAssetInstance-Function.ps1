@@ -15,6 +15,7 @@ Function Remove-ItGlueFlexibleAssetInstance {
             V1.0.0.4 date: 11 July 2019
             V1.0.0.5 date: 18 July 2019
             V1.0.0.6 date: 25 July 2019
+            V1.0.0.7 date: 1 August 2019
         .LINK
             https://github.com/wetling23/Public.ItGlue.PowerShellModule
         .PARAMETER ApiKey
@@ -107,7 +108,13 @@ Function Remove-ItGlueFlexibleAssetInstance {
             $stopLoop = $True
         }
         Catch {
-            If (($_.ErrorDetails.message | ConvertFrom-Json | Select-Object -ExpandProperty errors).detail -eq "The request took too long to process and timed out.") {
+            If (($loopCount -lt 5) -and (($_.ErrorDetails.message | ConvertFrom-Json | Select-Object -ExpandProperty errors).detail -eq "The request took too long to process and timed out.")) {
+                $message = ("{0}: The request timed out and the loop count is {1} of 5, re-trying the query." -f [datetime]::Now, $loopCount)
+                If ($BlockLogging) { Write-Warning $message } Else { Write-Warning $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Warning -Message $message -EventId 5417 }
+
+                $loopCount++
+            }
+            ElseIf (($_.ErrorDetails.message | ConvertFrom-Json | Select-Object -ExpandProperty errors).detail -eq "The request took too long to process and timed out.") {
                 $message = ("{0}: The request for {1} timed out. {2} will exit." -f [datetime]::Now, $CustomerId, $MyInvocation.MyCommand)
                 If ($BlockLogging) { Write-Error $message } Else { Write-Error $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Error -Message $message -EventId 5417 }
 
@@ -125,4 +132,4 @@ Function Remove-ItGlueFlexibleAssetInstance {
     While ($stopLoop -eq $false)
 
     Return $response
-} #1.0.0.6
+} #1.0.0.7
