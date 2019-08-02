@@ -26,6 +26,7 @@ Function Out-ItGlueFlexibleAsset {
             V1.0.0.10 date: 18 July 2019
             V1.0.0.11 date: 24 July 2019
             V1.0.0.12 date: 25 July 2019
+            V1.0.0.13 date: 1 August 2019
         .LINK
             https://github.com/wetling23/Public.ItGlue.PowerShellModule
         .PARAMETER Data
@@ -97,15 +98,16 @@ Function Out-ItGlueFlexibleAsset {
     $message = ("{0}: Beginning {1}." -f [datetime]::Now, $MyInvocation.MyCommand)
     If (($BlockLogging) -AND (($PSBoundParameters['Verbose']) -or $VerbosePreference -eq 'Continue')) { Write-Verbose $message } ElseIf (($PSBoundParameters['Verbose']) -or ($VerbosePreference = 'Continue')) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
+    $message = ("{0}: Operating in the {1} parameterset." -f [datetime]::Now, $PsCmdlet.ParameterSetName)
+    If (($BlockLogging) -AND (($PSBoundParameters['Verbose']) -or $VerbosePreference -eq 'Continue')) { Write-Verbose $message } ElseIf (($PSBoundParameters['Verbose']) -or ($VerbosePreference = 'Continue')) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
+
     # We are patching, but don't have a flexible asset instance to patch, request the ID.
     If (($HttpMethod -eq 'PATCH') -and (-NOT($FlexibleAssetInstanceId))) {
         $FlexibleAssetInstanceId = Read-Host -Message "Enter a flexible asset instance ID"
     }
 
-    $message = ("{0}: Operating in the {1} parameterset." -f [datetime]::Now, $PsCmdlet.ParameterSetName)
-    If (($BlockLogging) -AND (($PSBoundParameters['Verbose']) -or $VerbosePreference -eq 'Continue')) { Write-Verbose $message } ElseIf (($PSBoundParameters['Verbose']) -or ($VerbosePreference = 'Continue')) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
-
     # Initialize variables.
+    $loopCount = 0
     $HttpMethod = $HttpMethod.ToUpper()
     $stopLoop = $false
     Switch ($PsCmdlet.ParameterSetName) {
@@ -139,7 +141,7 @@ Function Out-ItGlueFlexibleAsset {
         $uploadUrl = "$ItGlueUriBase/flexible_assets"
     }
 
-    $message = ("{0}: Attempting to upload data to ITGlue (method: {1})" -f [datetime]::Now, $HttpMethod)
+    $message = ("{0}: Attempting to upload data to ITGlue (method: {1})." -f [datetime]::Now, $HttpMethod)
     If (($BlockLogging) -AND (($PSBoundParameters['Verbose']) -or $VerbosePreference -eq 'Continue')) { Write-Verbose $message } ElseIf (($PSBoundParameters['Verbose']) -or ($VerbosePreference = 'Continue')) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
     Do {
@@ -149,7 +151,13 @@ Function Out-ItGlueFlexibleAsset {
             $stopLoop = $True
         }
         Catch {
-            If (($_.ErrorDetails.message | ConvertFrom-Json | Select-Object -ExpandProperty errors).detail -eq "The request took too long to process and timed out.") {
+            If (($loopCount -lt 5) -and (($_.ErrorDetails.message | ConvertFrom-Json | Select-Object -ExpandProperty errors).detail -eq "The request took too long to process and timed out.")) {
+                $message = ("{0}: The request timed out and the loop count is {1} of 5, re-trying the query." -f [datetime]::Now, $loopCount)
+                If ($BlockLogging) { Write-Warning $message } Else { Write-Warning $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Warning -Message $message -EventId 5417 }
+
+                $loopCount++
+            }
+            ElseIf (($_.ErrorDetails.message | ConvertFrom-Json | Select-Object -ExpandProperty errors).detail -eq "The request took too long to process and timed out.") {
                 $message = ("{0}: The request for {1} timed out. {2} will exit." -f [datetime]::Now, $CustomerId, $MyInvocation.MyCommand)
                 If ($BlockLogging) { Write-Error $message } Else { Write-Error $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Error -Message $message -EventId 5417 }
 
@@ -167,4 +175,4 @@ Function Out-ItGlueFlexibleAsset {
     While ($stopLoop -eq $false)
 
     $response
-} #1.0.0.12
+} #1.0.0.13
