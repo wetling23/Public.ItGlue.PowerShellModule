@@ -12,6 +12,7 @@ Function Get-ItGlueJsonWebToken {
                 - Updated date calculation.
             V1.0.0.3 date: 18 July 2019
             V1.0.0.4 date: 25 July 2019
+            V1.0.0.5 date: 1 August 2019
         .PARAMETER Credential
             ITGlue credential object for the desired local account.
         .PARAMETER ItGlueUriBase
@@ -59,34 +60,34 @@ Function Get-ItGlueJsonWebToken {
     $message = ("{0}: Step 1, get a refresh token." -f [datetime]::Now)
     If (($BlockLogging) -AND (($PSBoundParameters['Verbose']) -or $VerbosePreference -eq 'Continue')) { Write-Verbose $message } ElseIf (($PSBoundParameters['Verbose']) -or ($VerbosePreference = 'Continue')) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
-    # Get ITGlue refresh token.
-    $attributes = New-Object PSObject
-    $attributes | Add-Member -Type NoteProperty -Name "email" -Value $Credential.UserName
-    $attributes | Add-Member -Type NoteProperty -Name "password" -Value $Credential.GetNetworkCredential().password
-
-    $user = New-Object PSObject
-    $user | Add-Member -Type NoteProperty -Name "user" -Value $attributes
+    #region get refresh token
+    $base = [PSCustomObject]@{
+        "user" = [PSCustomObject]@{
+            "email"    = $Credential.UserName
+            "password" = $Credential.GetNetworkCredential().password
+        }
+    }
 
     $url = "$ItGlueUriBase/login?generate_jwt=1&sso_disabled=1"
     $headers = @{ 'cache-control' = 'no-cache'; 'content-type' = 'application/json' }
 
     Try {
-        $refreshToken = Invoke-WebRequest -UseBasicParsing -Uri $url -Headers $headers -Body ($user | ConvertTo-Json) -Method POST -ErrorAction Stop
+        $refreshToken = Invoke-WebRequest -UseBasicParsing -Uri $url -Headers $headers -Body ($base | ConvertTo-Json) -Method POST -ErrorAction Stop
     }
     Catch {
         $message = ("{0}: Unexpected error getting a refresh token. To prevent errors, {1} will exit. The specific error is: {2}" -f [datetime]::Now, $MyInvocation.MyCommand, $_.Exception.Message)
         If ($BlockLogging) { Write-Error $message } Else { Write-Error $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Error -Message $message -EventId 5417 }
 
-        Return
+        Return "Error"
     }
+    #endregion get refresh token
 
+    #region get access token
     $message = ("{0}: Step 2, get an access token." -f [datetime]::Now)
     If (($BlockLogging) -AND (($PSBoundParameters['Verbose']) -or $VerbosePreference -eq 'Continue')) { Write-Verbose $message } ElseIf (($PSBoundParameters['Verbose']) -or ($VerbosePreference = 'Continue')) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
-    # Get ITGlue access token.
     $url = "$ItGlueUriBase/jwt/token?refresh_token=$(($refreshToken.Content | ConvertFrom-Json).token)"
-    $headers = @{ }
-    $headers.add('cache-control', 'no-cache')
+    $headers = @{ 'cache-control' = 'no-cache' }
 
     Try {
         $accessToken = Invoke-WebRequest -UseBasicParsing -Uri $url -Headers $headers -Method GET -ErrorAction Stop
@@ -95,8 +96,9 @@ Function Get-ItGlueJsonWebToken {
         $message = ("{0}: Unexpected error getting a refresh token. To prevent errors, {1} will exit. The specific error is: {2}" -f [datetime]::Now, $MyInvocation.MyCommand, $_.Exception.Message)
         If ($BlockLogging) { Write-Error $message } Else { Write-Error $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Error -Message $message -EventId 5417 }
 
-        Return
+        Return "Error"
     }
+    #endregion get access token
 
     Return $accessToken
-} #1.0.0.4
+} #1.0.0.5
