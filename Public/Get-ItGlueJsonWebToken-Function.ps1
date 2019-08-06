@@ -13,6 +13,7 @@ Function Get-ItGlueJsonWebToken {
             V1.0.0.3 date: 18 July 2019
             V1.0.0.4 date: 25 July 2019
             V1.0.0.5 date: 1 August 2019
+            V1.0.0.6 date: 6 August 2019
         .PARAMETER Credential
             ITGlue credential object for the desired local account.
         .PARAMETER ItGlueUriBase
@@ -52,13 +53,13 @@ Function Get-ItGlueJsonWebToken {
     }
 
     $message = ("{0}: Beginning {1}." -f [datetime]::Now, $MyInvocation.MyCommand)
-    If (($BlockLogging) -AND (($PSBoundParameters['Verbose']) -or $VerbosePreference -eq 'Continue')) { Write-Verbose $message } ElseIf (($PSBoundParameters['Verbose']) -or ($VerbosePreference = 'Continue')) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
+    If (($BlockLogging) -AND (($PSBoundParameters['Verbose']) -or $VerbosePreference -eq 'Continue')) { Write-Verbose $message } ElseIf (($PSBoundParameters['Verbose']) -or ($VerbosePreference -eq 'Continue')) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
     # Initialize variables.
     $ItGlueUriBase = $ItGlueUriBase.TrimEnd('/')
 
     $message = ("{0}: Step 1, get a refresh token." -f [datetime]::Now)
-    If (($BlockLogging) -AND (($PSBoundParameters['Verbose']) -or $VerbosePreference -eq 'Continue')) { Write-Verbose $message } ElseIf (($PSBoundParameters['Verbose']) -or ($VerbosePreference = 'Continue')) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
+    If (($BlockLogging) -AND (($PSBoundParameters['Verbose']) -or $VerbosePreference -eq 'Continue')) { Write-Verbose $message } ElseIf (($PSBoundParameters['Verbose']) -or ($VerbosePreference -eq 'Continue')) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
     #region get refresh token
     $base = [PSCustomObject]@{
@@ -84,7 +85,7 @@ Function Get-ItGlueJsonWebToken {
 
     #region get access token
     $message = ("{0}: Step 2, get an access token." -f [datetime]::Now)
-    If (($BlockLogging) -AND (($PSBoundParameters['Verbose']) -or $VerbosePreference -eq 'Continue')) { Write-Verbose $message } ElseIf (($PSBoundParameters['Verbose']) -or ($VerbosePreference = 'Continue')) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
+    If (($BlockLogging) -AND (($PSBoundParameters['Verbose']) -or $VerbosePreference -eq 'Continue')) { Write-Verbose $message } ElseIf (($PSBoundParameters['Verbose']) -or ($VerbosePreference -eq 'Continue')) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
     $url = "$ItGlueUriBase/jwt/token?refresh_token=$(($refreshToken.Content | ConvertFrom-Json).token)"
     $headers = @{ 'cache-control' = 'no-cache' }
@@ -101,4 +102,4 @@ Function Get-ItGlueJsonWebToken {
     #endregion get access token
 
     Return $accessToken
-} #1.0.0.5
+} #1.0.0.6
