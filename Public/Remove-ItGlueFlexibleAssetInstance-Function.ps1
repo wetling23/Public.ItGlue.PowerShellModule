@@ -17,6 +17,7 @@ Function Remove-ItGlueFlexibleAssetInstance {
             V1.0.0.6 date: 25 July 2019
             V1.0.0.7 date: 1 August 2019
             V1.0.0.8 date: 6 August 2019
+            V1.0.0.9 date: 8 August 2019
         .LINK
             https://github.com/wetling23/Public.ItGlue.PowerShellModule
         .PARAMETER ApiKey
@@ -94,7 +95,7 @@ Function Remove-ItGlueFlexibleAssetInstance {
 
             $accessToken = Get-ItGlueJsonWebToken -Credential $UserCred
 
-            $ItGlueUriBase = 'https://api-mobile-prod.itglue.com/api'
+            $UriBase = 'https://api-mobile-prod.itglue.com/api'
             $header = @{ 'cache-control' = 'no-cache'; 'content-type' = 'application/vnd.api+json'; 'authorization' = "Bearer $(($accessToken.Content | ConvertFrom-Json).token)" }
         }
     }
@@ -104,7 +105,7 @@ Function Remove-ItGlueFlexibleAssetInstance {
 
     Do {
         Try {
-            $response = Invoke-RestMethod -Method $httpVerb -Headers $header -Uri "$ItGlueUriBase/flexible_assets/$Id" -ErrorAction Stop
+            $response = Invoke-RestMethod -Method $httpVerb -Headers $header -Uri "$UriBase/flexible_assets/$Id" -ErrorAction Stop
 
             $stopLoop = $True
         }
@@ -133,4 +134,4 @@ Function Remove-ItGlueFlexibleAssetInstance {
     While ($stopLoop -eq $false)
 
     Return $response
-} #1.0.0.8
+} #1.0.0.9
