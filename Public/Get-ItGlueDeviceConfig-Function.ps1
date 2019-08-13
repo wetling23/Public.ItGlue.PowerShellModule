@@ -13,6 +13,7 @@ Function Get-ItGlueDeviceConfig {
             V1.0.0.11 date: 1 August 2019
             V1.0.0.12 date: 6 August 2019
             V1.0.0.13 date: 9 August 2019
+            V1.0.0.14 date: 13 August 2019
         .LINK
             https://github.com/wetling23/Public.ItGlue.PowerShellModule
         .PARAMETER ComputerName
@@ -91,7 +92,7 @@ Function Get-ItGlueDeviceConfig {
     # Initialize variables.
     $retrievedInstanceCollection = [System.Collections.Generic.List[PSObject]]::New()
     $stopLoop = $false
-    $loopCount = 0
+    $loopCount = 1
     $onlyOneInstance = $false
     Switch ($PsCmdlet.ParameterSetName) {
         'ApiKey' {
@@ -131,7 +132,7 @@ Function Get-ItGlueDeviceConfig {
 
                     Start-Sleep -Seconds 60
                 }
-                If (($loopCount -lt 5) -and (($_.ErrorDetails.message | ConvertFrom-Json | Select-Object -ExpandProperty errors).detail -eq "The request took too long to process and timed out.")) {
+                ElseIf (($loopCount -le 5) -and (($_.ErrorDetails.message | ConvertFrom-Json | Select-Object -ExpandProperty errors).detail -eq "The request took too long to process and timed out.")) {
                     $message = ("{0}: The request timed out and the loop count is {1} of 5, re-trying the query." -f [datetime]::Now, $loopCount)
                     If ($BlockLogging) { Write-Warning $message } Else { Write-Warning $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Warning -Message $message -EventId 5417 }
 
@@ -157,7 +158,7 @@ Function Get-ItGlueDeviceConfig {
 
         $page = 1
         Do {
-            $loopCount = 0
+            $loopCount = 1
             $stopLoop = $False
             $queryBody = @{
                 "page[size]"   = $PageSize
@@ -180,38 +181,40 @@ Function Get-ItGlueDeviceConfig {
 
                         Start-Sleep -Seconds 60
                     }
-                    If (($loopCount -lt 5) -and (($_.ErrorDetails.message | ConvertFrom-Json | Select-Object -ExpandProperty errors).detail -eq "The request took too long to process and timed out.")) {
+                    ElseIf (($loopCount -le 6) -and (($_.ErrorDetails.message | ConvertFrom-Json | Select-Object -ExpandProperty errors -ErrorAction SilentlyContinue).detail -eq "The request took too long to process and timed out.")) {
                         $message = ("{0}: The request timed out and the loop count is {1} of 5, re-trying the query." -f [datetime]::Now, $loopCount)
                         If ($BlockLogging) { Write-Warning $message } Else { Write-Warning $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Warning -Message $message -EventId 5417 }
 
                         $loopCount++
-                    }
-                    ElseIf (($_.ErrorDetails.message | ConvertFrom-Json | Select-Object -ExpandProperty errors).detail -eq "The request took too long to process and timed out.") {
-                        $PageSize = $PageSize / 2
-                        $page = ($retrievedInstanceCollection.count / $PageSize) + 1
-                        $queryBody = @{
-                            "page[size]"   = $PageSize
-                            "page[number]" = $page
+
+                        If ($loopCount -eq 6) {
+                            $message = ("{0}: Re-try count reached, resetting the query parameters." -f [datetime]::Now)
+                            If (($BlockLogging) -AND (($PSBoundParameters['Verbose']) -or $VerbosePreference -eq 'Continue')) { Write-Verbose $message } ElseIf (($PSBoundParameters['Verbose']) -or ($VerbosePreference -eq 'Continue')) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
+
+                            If ($PageSize -eq 1) {
+                                $message = ("{0}: Cannot lower the page count any futher, {1} will exit." -f [datetime]::Now, $MyInvocation.MyCommand, $_.Exception.Message)
+                                If ($BlockLogging) { Write-Error $message } Else { Write-Error $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Error -Message $message -EventId 5417 }
+
+                                # Sometimes, the function returns instance values and the string, "error". Doing this should prevent that.
+                                $retrievedInstanceCollection = "Error"
+
+                                Return "Error"
+                            }
+                            Else {
+                                $loopCount = 1
+                                $PageSize = $PageSize / 2
+                                $page = [math]::Round(($retrievedInstanceCollection.count / $PageSize) + 1)
+                                $queryBody = @{
+                                    "page[size]"                     = $PageSize
+                                    "page[number]"                   = $page
+                                    "filter[flexible_asset_type_id]" = "$FlexibleAssetId"
+                                }
+                            }
                         }
-
-                        If ($PageSize -lt 1) {
-                            $message = ("{0}: Page size is less than 1, {1} will exit." -f [datetime]::Now, $MyInvocation.MyCommand, $_.Exception.Message)
-                            If ($BlockLogging) { Write-Error $message } Else { Write-Error $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Error -Message $message -EventId 5417 }
-
-                            # Sometimes, the function returns instance values and the string, "error". Doing this should prevent that.
-                            $retrievedInstanceCollection = "Error"
-
-                            Return "Error"
-                        }
-
-                        $message = ("{0}: The request timed out, retrying in 5 seconds with `$PageSize == {1}." -f [datetime]::Now, $PageSize)
-                        If ($BlockLogging) { Write-Warning $message } Else { Write-Warning $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Warning -Message $message -EventId 5417 }
-
-                        Start-Sleep -Seconds 5
                     }
                     Else {
                         $message = ("{0}: Unexpected error getting instances. To prevent errors, {1} will exit. If present, the error detail is {2} PowerShell returned: {3}" -f `
-                                [datetime]::Now, $MyInvocation.MyCommand, (($_.ErrorDetails.message | ConvertFrom-Json -ErrorAction SilentlyContinue | Select-Object -ExpandProperty errors).detail), $_.Exception.Message)
+                                [datetime]::Now, $MyInvocation.MyCommand, (($_.ErrorDetails.message | ConvertFrom-Json -ErrorAction SilentlyContinue | Select-Object -ExpandProperty errors -ErrorAction SilentlyContinue).detail), $_.Exception.Message)
                         If ($BlockLogging) { Write-Error $message } Else { Write-Error $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Error -Message $message -EventId 5417 }
 
                         Return "Error"
@@ -249,7 +252,7 @@ Function Get-ItGlueDeviceConfig {
 
                     Start-Sleep -Seconds 60
                 }
-                If (($loopCount -lt 5) -and (($_.ErrorDetails.message | ConvertFrom-Json | Select-Object -ExpandProperty errors).detail -eq "The request took too long to process and timed out.")) {
+                ElseIf (($loopCount -le 5) -and (($_.ErrorDetails.message | ConvertFrom-Json | Select-Object -ExpandProperty errors).detail -eq "The request took too long to process and timed out.")) {
                     $message = ("{0}: The request timed out and the loop count is {1} of 5, re-trying the query." -f [datetime]::Now, $loopCount)
                     If ($BlockLogging) { Write-Warning $message } Else { Write-Warning $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Warning -Message $message -EventId 5417 }
 
@@ -275,7 +278,7 @@ Function Get-ItGlueDeviceConfig {
 
         $page = 1
         Do {
-            $loopCount = 0
+            $loopCount = 1
             $stopLoop = $False
             $queryBody = @{
                 "page[size]"              = $PageSize
@@ -283,14 +286,14 @@ Function Get-ItGlueDeviceConfig {
                 "filter[organization-id]" = $CustomerId
             }
 
-            $message = ("{0}: Body: {1}`r`nUrl: {2}" -f [datetime]::Now, ($queryBody | Out-String), "$UriBase/flexible_assets")
-            If (($BlockLogging) -AND (($PSBoundParameters['Verbose']) -or $VerbosePreference -eq 'Continue')) { Write-Verbose $message } ElseIf (($PSBoundParameters['Verbose']) -or ($VerbosePreference -eq 'Continue')) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
-
             $message = ("{0}: Retrieved {1} of {2} instances." -f [datetime]::Now, $retrievedInstanceCollection.data.Count, $($instanceTotalCount.meta.'total-count'))
             If (($BlockLogging) -AND (($PSBoundParameters['Verbose']) -or $VerbosePreference -eq 'Continue')) { Write-Verbose $message } ElseIf (($PSBoundParameters['Verbose']) -or ($VerbosePreference -eq 'Continue')) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
             Do {
                 Try {
+                    $message = ("{0}: Sending the following:`r`nBody: {1}`r`nUrl: {2}" -f [datetime]::Now, ($queryBody | Out-String), "$UriBase/flexible_assets")
+                    If (($BlockLogging) -AND (($PSBoundParameters['Verbose']) -or $VerbosePreference -eq 'Continue')) { Write-Verbose $message } ElseIf (($PSBoundParameters['Verbose']) -or ($VerbosePreference -eq 'Continue')) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
+
                     (Invoke-RestMethod -Method GET -Headers $header -Uri "$UriBase/configurations" -Body $queryBody -ErrorAction Stop) | ForEach-Object { $retrievedInstanceCollection.Add($_) }
 
                     $stopLoop = $True
@@ -302,39 +305,40 @@ Function Get-ItGlueDeviceConfig {
 
                         Start-Sleep -Seconds 60
                     }
-                    If (($loopCount -lt 5) -and (($_.ErrorDetails.message | ConvertFrom-Json | Select-Object -ExpandProperty errors).detail -eq "The request took too long to process and timed out.")) {
+                    ElseIf (($loopCount -le 6) -and (($_.ErrorDetails.message | ConvertFrom-Json | Select-Object -ExpandProperty errors -ErrorAction SilentlyContinue).detail -eq "The request took too long to process and timed out.")) {
                         $message = ("{0}: The request timed out and the loop count is {1} of 5, re-trying the query." -f [datetime]::Now, $loopCount)
                         If ($BlockLogging) { Write-Warning $message } Else { Write-Warning $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Warning -Message $message -EventId 5417 }
 
                         $loopCount++
-                    }
-                    ElseIf (($_.ErrorDetails.message | ConvertFrom-Json | Select-Object -ExpandProperty errors).detail -eq "The request took too long to process and timed out.") {
-                        $PageSize = $PageSize / 2
-                        $page = ($retrievedInstanceCollection.count / $PageSize) + 1
-                        $queryBody = @{
-                            "page[size]"              = $PageSize
-                            "page[number]"            = $page
-                            "filter[organization-id]" = $CustomerId
+
+                        If ($loopCount -eq 6) {
+                            $message = ("{0}: Re-try count reached, resetting the query parameters." -f [datetime]::Now)
+                            If (($BlockLogging) -AND (($PSBoundParameters['Verbose']) -or $VerbosePreference -eq 'Continue')) { Write-Verbose $message } ElseIf (($PSBoundParameters['Verbose']) -or ($VerbosePreference -eq 'Continue')) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
+
+                            If ($PageSize -eq 1) {
+                                $message = ("{0}: Cannot lower the page count any futher, {1} will exit." -f [datetime]::Now, $MyInvocation.MyCommand, $_.Exception.Message)
+                                If ($BlockLogging) { Write-Error $message } Else { Write-Error $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Error -Message $message -EventId 5417 }
+
+                                # Sometimes, the function returns instance values and the string, "error". Doing this should prevent that.
+                                $retrievedInstanceCollection = "Error"
+
+                                Return "Error"
+                            }
+                            Else {
+                                $loopCount = 1
+                                $PageSize = $PageSize / 2
+                                $page = [math]::Round(($retrievedInstanceCollection.count / $PageSize) + 1)
+                                $queryBody = @{
+                                    "page[size]"                     = $PageSize
+                                    "page[number]"                   = $page
+                                    "filter[flexible_asset_type_id]" = "$FlexibleAssetId"
+                                }
+                            }
                         }
-
-                        If ($PageSize -lt 1) {
-                            $message = ("{0}: Page size is less than 1, {1} will exit." -f [datetime]::Now, $MyInvocation.MyCommand, $_.Exception.Message)
-                            If ($BlockLogging) { Write-Error $message } Else { Write-Error $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Error -Message $message -EventId 5417 }
-
-                            # Sometimes, the function returns instance values and the string, "error". Doing this should prevent that.
-                            $retrievedInstanceCollection = "Error"
-
-                            Return "Error"
-                        }
-
-                        $message = ("{0}: The request timed out, retrying in 5 seconds with `$PageSize == {1}." -f [datetime]::Now, $PageSize)
-                        If ($BlockLogging) { Write-Warning $message } Else { Write-Warning $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Warning -Message $message -EventId 5417 }
-
-                        Start-Sleep -Seconds 5
                     }
                     Else {
                         $message = ("{0}: Unexpected error getting instances. To prevent errors, {1} will exit. If present, the error detail is {2} PowerShell returned: {3}" -f `
-                                [datetime]::Now, $MyInvocation.MyCommand, (($_.ErrorDetails.message | ConvertFrom-Json -ErrorAction SilentlyContinue | Select-Object -ExpandProperty errors).detail), $_.Exception.Message)
+                                [datetime]::Now, $MyInvocation.MyCommand, (($_.ErrorDetails.message | ConvertFrom-Json -ErrorAction SilentlyContinue | Select-Object -ExpandProperty errors -ErrorAction SilentlyContinue).detail), $_.Exception.Message)
                         If ($BlockLogging) { Write-Error $message } Else { Write-Error $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Error -Message $message -EventId 5417 }
 
                         Return "Error"
@@ -388,7 +392,7 @@ Function Get-ItGlueDeviceConfig {
 
                     Start-Sleep -Seconds 60
                 }
-                If (($loopCount -lt 5) -and (($_.ErrorDetails.message | ConvertFrom-Json | Select-Object -ExpandProperty errors).detail -eq "The request took too long to process and timed out.")) {
+                ElseIf (($loopCount -le 5) -and (($_.ErrorDetails.message | ConvertFrom-Json | Select-Object -ExpandProperty errors).detail -eq "The request took too long to process and timed out.")) {
                     $message = ("{0}: The request timed out and the loop count is {1} of 5, re-trying the query." -f [datetime]::Now, $loopCount)
                     If ($BlockLogging) { Write-Warning $message } Else { Write-Warning $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Warning -Message $message -EventId 5417 }
 
@@ -414,21 +418,21 @@ Function Get-ItGlueDeviceConfig {
 
         $page = 1
         Do {
-            $loopCount = 0
+            $loopCount = 1
             $stopLoop = $False
             $queryBody = @{
                 "page[size]"   = $PageSize
                 "page[number]" = $page
             }
 
-            $message = ("{0}: Body: {1}`r`nUrl: {2}" -f [datetime]::Now, ($queryBody | Out-String), "$UriBase/flexible_assets")
-            If (($BlockLogging) -AND (($PSBoundParameters['Verbose']) -or $VerbosePreference -eq 'Continue')) { Write-Verbose $message } ElseIf (($PSBoundParameters['Verbose']) -or ($VerbosePreference -eq 'Continue')) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
-
             $message = ("{0}: Retrieved {1} of {2} instances." -f [datetime]::Now, $retrievedInstanceCollection.data.Count, $($instanceTotalCount.meta.'total-count'))
             If (($BlockLogging) -AND (($PSBoundParameters['Verbose']) -or $VerbosePreference -eq 'Continue')) { Write-Verbose $message } ElseIf (($PSBoundParameters['Verbose']) -or ($VerbosePreference -eq 'Continue')) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
             Do {
                 Try {
+                    $message = ("{0}: Sending the following:`r`nBody: {1}`r`nUrl: {2}" -f [datetime]::Now, ($queryBody | Out-String), "$UriBase/flexible_assets")
+                    If (($BlockLogging) -AND (($PSBoundParameters['Verbose']) -or $VerbosePreference -eq 'Continue')) { Write-Verbose $message } ElseIf (($PSBoundParameters['Verbose']) -or ($VerbosePreference -eq 'Continue')) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
+
                     (Invoke-RestMethod -Method GET -Headers $header -Uri "$UriBase/configurations" -Body $queryBody -ErrorAction Stop) | ForEach-Object { $retrievedInstanceCollection.Add($_) }
 
                     $stopLoop = $True
@@ -440,38 +444,40 @@ Function Get-ItGlueDeviceConfig {
 
                         Start-Sleep -Seconds 60
                     }
-                    If (($loopCount -lt 5) -and (($_.ErrorDetails.message | ConvertFrom-Json | Select-Object -ExpandProperty errors).detail -eq "The request took too long to process and timed out.")) {
+                    ElseIf (($loopCount -le 6) -and (($_.ErrorDetails.message | ConvertFrom-Json | Select-Object -ExpandProperty errors -ErrorAction SilentlyContinue).detail -eq "The request took too long to process and timed out.")) {
                         $message = ("{0}: The request timed out and the loop count is {1} of 5, re-trying the query." -f [datetime]::Now, $loopCount)
                         If ($BlockLogging) { Write-Warning $message } Else { Write-Warning $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Warning -Message $message -EventId 5417 }
 
                         $loopCount++
-                    }
-                    ElseIf (($_.ErrorDetails.message | ConvertFrom-Json | Select-Object -ExpandProperty errors).detail -eq "The request took too long to process and timed out.") {
-                        $PageSize = $PageSize / 2
-                        $page = ($retrievedInstanceCollection.count / $PageSize) + 1
-                        $queryBody = @{
-                            "page[size]"   = $PageSize
-                            "page[number]" = $page
+
+                        If ($loopCount -eq 6) {
+                            $message = ("{0}: Re-try count reached, resetting the query parameters." -f [datetime]::Now)
+                            If (($BlockLogging) -AND (($PSBoundParameters['Verbose']) -or $VerbosePreference -eq 'Continue')) { Write-Verbose $message } ElseIf (($PSBoundParameters['Verbose']) -or ($VerbosePreference -eq 'Continue')) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
+
+                            If ($PageSize -eq 1) {
+                                $message = ("{0}: Cannot lower the page count any futher, {1} will exit." -f [datetime]::Now, $MyInvocation.MyCommand, $_.Exception.Message)
+                                If ($BlockLogging) { Write-Error $message } Else { Write-Error $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Error -Message $message -EventId 5417 }
+
+                                # Sometimes, the function returns instance values and the string, "error". Doing this should prevent that.
+                                $retrievedInstanceCollection = "Error"
+
+                                Return "Error"
+                            }
+                            Else {
+                                $loopCount = 1
+                                $PageSize = $PageSize / 2
+                                $page = [math]::Round(($retrievedInstanceCollection.count / $PageSize) + 1)
+                                $queryBody = @{
+                                    "page[size]"                     = $PageSize
+                                    "page[number]"                   = $page
+                                    "filter[flexible_asset_type_id]" = "$FlexibleAssetId"
+                                }
+                            }
                         }
-
-                        If ($PageSize -lt 1) {
-                            $message = ("{0}: Page size is less than 1, {1} will exit." -f [datetime]::Now, $MyInvocation.MyCommand, $_.Exception.Message)
-                            If ($BlockLogging) { Write-Error $message } Else { Write-Error $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Error -Message $message -EventId 5417 }
-
-                            # Sometimes, the function returns instance values and the string, "error". Doing this should prevent that.
-                            $retrievedInstanceCollection = "Error"
-
-                            Return "Error"
-                        }
-
-                        $message = ("{0}: The request timed out, retrying in 5 seconds with `$PageSize == {1}." -f [datetime]::Now, $PageSize)
-                        If ($BlockLogging) { Write-Warning $message } Else { Write-Warning $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Warning -Message $message -EventId 5417 }
-
-                        Start-Sleep -Seconds 5
                     }
                     Else {
                         $message = ("{0}: Unexpected error getting instances. To prevent errors, {1} will exit. If present, the error detail is {2} PowerShell returned: {3}" -f `
-                                [datetime]::Now, $MyInvocation.MyCommand, (($_.ErrorDetails.message | ConvertFrom-Json -ErrorAction SilentlyContinue | Select-Object -ExpandProperty errors).detail), $_.Exception.Message)
+                                [datetime]::Now, $MyInvocation.MyCommand, (($_.ErrorDetails.message | ConvertFrom-Json -ErrorAction SilentlyContinue | Select-Object -ExpandProperty errors -ErrorAction SilentlyContinue).detail), $_.Exception.Message)
                         If ($BlockLogging) { Write-Error $message } Else { Write-Error $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Error -Message $message -EventId 5417 }
 
                         Return "Error"
@@ -505,4 +511,4 @@ Function Get-ItGlueDeviceConfig {
 
         Return "Error"
     }
-} #1.0.0.13
+} #1.0.0.14
