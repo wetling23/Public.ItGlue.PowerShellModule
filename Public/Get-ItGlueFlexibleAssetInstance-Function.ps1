@@ -157,7 +157,7 @@ Function Get-ItGlueFlexibleAssetInstance {
             "filter[flexible_asset_type_id]" = "$FlexibleAssetId"
         }
 
-        $message = ("{0}: Body: {1}`r`nUrl: {2}" -f [datetime]::Now, , ($queryBody | Out-String), "$UriBase/flexible_assets")
+        $message = ("{0}: Sending the following:`r`nBody: {1}`r`nUrl: {2}" -f [datetime]::Now, ($queryBody | Out-String), "$UriBase/flexible_assets")
         If (($BlockLogging) -AND (($PSBoundParameters['Verbose']) -or $VerbosePreference -eq 'Continue')) { Write-Verbose $message } ElseIf (($PSBoundParameters['Verbose']) -or ($VerbosePreference -eq 'Continue')) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
         $message = ("{0}: Retrieved {1} of {2} instances." -f [datetime]::Now, $retrievedInstanceCollection.Count, $($instanceTotalCount.meta.'total-count'))
@@ -201,10 +201,8 @@ Function Get-ItGlueFlexibleAssetInstance {
                         Return "Error"
                     }
 
-                    $message = ("{0}: The request timed out, retrying in 5 seconds with `$PageSize == {1}." -f [datetime]::Now, $PageSize)
+                    $message = ("{0}: The request timed out, retrying with `$PageSize == {1}." -f [datetime]::Now, $PageSize)
                     If ($BlockLogging) { Write-Warning $message } Else { Write-Warning $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Warning -Message $message -EventId 5417 }
-
-                    Start-Sleep -Seconds 5
                 }
                 Else {
                     $message = ("{0}: Unexpected error getting instances. To prevent errors, {1} will exit. If present, the error detail is {2} PowerShell returned: {3}" -f `
@@ -222,4 +220,4 @@ Function Get-ItGlueFlexibleAssetInstance {
     While ($retrievedInstanceCollection.Count -ne $instanceTotalCount.meta.'total-count')
 
     Return $retrievedInstanceCollection
-} #1.0.0.16
+} #1.0.0.17
