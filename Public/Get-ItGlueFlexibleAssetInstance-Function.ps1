@@ -12,6 +12,7 @@ Function Get-ItGlueFlexibleAssetInstance {
             V1.0.0.14 date: 1 August 2019
             V1.0.0.15 date: 6 August 2019
             V1.0.0.16 date: 9 August 2019
+            V1.0.0.17 date: 13 August 2019
         .LINK
             https://github.com/wetling23/Public.ItGlue.PowerShellModule
         .PARAMETER ApiKey
@@ -103,7 +104,7 @@ Function Get-ItGlueFlexibleAssetInstance {
     $message = ("{0}: Attempting to determine how many instances there are to be retrieved." -f [datetime]::Now)
     If (($BlockLogging) -AND (($PSBoundParameters['Verbose']) -or $VerbosePreference -eq 'Continue')) { Write-Verbose $message } ElseIf (($PSBoundParameters['Verbose']) -or ($VerbosePreference -eq 'Continue')) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
-    $message = ("{0}: Body: {1}`r`nUrl: {2}" -f [datetime]::Now, ((@{"filter[flexible_asset_type_id]" = "$FlexibleAssetId" }) | Out-String), "$UriBase/flexible_assets?page[size]=$PageSize")
+    $message = ("{0}: Sending the following`r`nBody: {1}`r`nUrl: {2}" -f [datetime]::Now, ((@{"filter[flexible_asset_type_id]" = "$FlexibleAssetId" }) | Out-String), "$UriBase/flexible_assets?page[size]=$PageSize")
     If (($BlockLogging) -AND (($PSBoundParameters['Verbose']) -or $VerbosePreference -eq 'Continue')) { Write-Verbose $message } ElseIf (($PSBoundParameters['Verbose']) -or ($VerbosePreference -eq 'Continue')) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
 
     Do {
