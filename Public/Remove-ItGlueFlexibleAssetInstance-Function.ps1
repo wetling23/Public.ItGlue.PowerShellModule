@@ -19,6 +19,7 @@ Function Remove-ItGlueFlexibleAssetInstance {
             V1.0.0.8 date: 6 August 2019
             V1.0.0.9 date: 8 August 2019
             V1.0.0.10 date: 9 August 2019
+            V1.0.0.11 date: 19 August 2019
         .LINK
             https://github.com/wetling23/Public.ItGlue.PowerShellModule
         .PARAMETER ApiKey
@@ -124,7 +125,7 @@ Function Remove-ItGlueFlexibleAssetInstance {
                 $loopCount++
             }
             ElseIf (($_.ErrorDetails.message | ConvertFrom-Json | Select-Object -ExpandProperty errors).detail -eq "The request took too long to process and timed out.") {
-                $message = ("{0}: The request for {1} timed out. {2} will exit." -f [datetime]::Now, $CustomerId, $MyInvocation.MyCommand)
+                $message = ("{0}: The request to delete flexible asset {1} timed out. {2} will exit." -f [datetime]::Now, $Id, $MyInvocation.MyCommand)
                 If ($BlockLogging) { Write-Error $message } Else { Write-Error $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Error -Message $message -EventId 5417 }
 
                 Return "Error"
@@ -141,4 +142,4 @@ Function Remove-ItGlueFlexibleAssetInstance {
     While ($stopLoop -eq $false)
 
     Return $response
-} #1.0.0.10
+} #1.0.0.11
