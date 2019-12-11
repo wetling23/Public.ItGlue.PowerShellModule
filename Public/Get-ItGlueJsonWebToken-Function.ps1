@@ -14,18 +14,19 @@ Function Get-ItGlueJsonWebToken {
             V1.0.0.4 date: 25 July 2019
             V1.0.0.5 date: 1 August 2019
             V1.0.0.6 date: 6 August 2019
+            V1.0.0.7 date: 11 December 2019
         .PARAMETER Credential
             ITGlue credential object for the desired local account.
         .PARAMETER ItGlueUriBase
             Base URL for the ITGlue customer.
         .PARAMETER EventLogSource
-            Default value is "ItGluePowerShellModule" Represents the name of the desired source, for Event Log logging.
-        .PARAMETER BlockLogging
-            When this switch is included, the code will write output only to the host and will not attempt to write to the Event Log.
+            When included, (and when LogPath is null), represents the event log source for the Application log. If no event log source or path are provided, output is sent only to the host.
+        .PARAMETER LogPath
+            When included (when EventLogSource is null), represents the file, to which the cmdlet will output will be logged. If no path or event log source are provided, output is sent only to the host.
         .EXAMPLE
-            PS C:\> Get-ItGlueJsonWebToken -Credential (Get-Credential) -ItGlueUriBase https://company.itglue.com
+            PS C:\> Get-ItGlueJsonWebToken -Credential (Get-Credential) -ItGlueUriBase https://company.itglue.com -Verbose
 
-            In this example, the cmdlet connects to https://company.itglue.com and generates an access token for the user specified in Get-Credential. Output will be sent to the host session and to the Windows event log.
+            In this example, the cmdlet connects to https://company.itglue.com and generates an access token for the user specified in Get-Credential. Verbose output is sent to the host.
     #>
     [CmdletBinding()]
     param (
@@ -36,30 +37,19 @@ Function Get-ItGlueJsonWebToken {
         [ValidatePattern("^https?:\/\/[a-zA-Z0-9]+\.itglue\.com$")]
         [string]$ItGlueUriBase,
 
-        [string]$EventLogSource = 'ItGluePowerShellModule',
+        [string]$EventLogSource,
 
-        [switch]$BlockLogging
+        [string]$LogPath
     )
 
-    If (-NOT($BlockLogging)) {
-        $return = Add-EventLogSource -EventLogSource $EventLogSource
-
-        If ($return -ne "Success") {
-            $message = ("{0}: Unable to add event source ({1}). No logging will be performed." -f [datetime]::Now, $EventLogSource)
-            Write-Verbose $message
-
-            $BlockLogging = $True
-        }
-    }
-
     $message = ("{0}: Beginning {1}." -f [datetime]::Now, $MyInvocation.MyCommand)
-    If (($BlockLogging) -AND (($PSBoundParameters['Verbose']) -or $VerbosePreference -eq 'Continue')) { Write-Verbose $message } ElseIf (($PSBoundParameters['Verbose']) -or ($VerbosePreference -eq 'Continue')) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
+    If ($PSBoundParameters['Verbose'] -or $VerbosePreference -eq 'Continue') { If ($EventLogSource -and (-NOT $LogPath)) { Out-PsLogging -EventLogSource $EventLogSource -MessageType Verbose -Message $message } ElseIf ($LogPath -and (-NOT $EventLogSource)) { Out-PsLogging -LogPath $LogPath -MessageType Verbose -Message $message } Else { Out-PsLogging -ScreenOnly -MessageType Verbose -Message $message } }
 
     # Initialize variables.
     $ItGlueUriBase = $ItGlueUriBase.TrimEnd('/')
 
     $message = ("{0}: Step 1, get a refresh token." -f [datetime]::Now)
-    If (($BlockLogging) -AND (($PSBoundParameters['Verbose']) -or $VerbosePreference -eq 'Continue')) { Write-Verbose $message } ElseIf (($PSBoundParameters['Verbose']) -or ($VerbosePreference -eq 'Continue')) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
+    If ($PSBoundParameters['Verbose'] -or $VerbosePreference -eq 'Continue') { If ($EventLogSource -and (-NOT $LogPath)) { Out-PsLogging -EventLogSource $EventLogSource -MessageType Verbose -Message $message } ElseIf ($LogPath -and (-NOT $EventLogSource)) { Out-PsLogging -LogPath $LogPath -MessageType Verbose -Message $message } Else { Out-PsLogging -ScreenOnly -MessageType Verbose -Message $message } }
 
     #region get refresh token
     $base = [PSCustomObject]@{
@@ -77,7 +67,7 @@ Function Get-ItGlueJsonWebToken {
     }
     Catch {
         $message = ("{0}: Unexpected error getting a refresh token. To prevent errors, {1} will exit. The specific error is: {2}" -f [datetime]::Now, $MyInvocation.MyCommand, $_.Exception.Message)
-        If ($BlockLogging) { Write-Error $message } Else { Write-Error $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Error -Message $message -EventId 5417 }
+        If ($EventLogSource -and (-NOT $LogPath)) { Out-PsLogging -EventLogSource $EventLogSource -MessageType Error -Message $message } ElseIf ($LogPath -and (-NOT $EventLogSource)) { Out-PsLogging -LogPath $LogPath -MessageType Error -Message $message } Else { Out-PsLogging -ScreenOnly -MessageType Error -Message $message }
 
         Return "Error"
     }
@@ -85,7 +75,7 @@ Function Get-ItGlueJsonWebToken {
 
     #region get access token
     $message = ("{0}: Step 2, get an access token." -f [datetime]::Now)
-    If (($BlockLogging) -AND (($PSBoundParameters['Verbose']) -or $VerbosePreference -eq 'Continue')) { Write-Verbose $message } ElseIf (($PSBoundParameters['Verbose']) -or ($VerbosePreference -eq 'Continue')) { Write-Verbose $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Information -Message $message -EventId 5417 }
+    If ($PSBoundParameters['Verbose'] -or $VerbosePreference -eq 'Continue') { If ($EventLogSource -and (-NOT $LogPath)) { Out-PsLogging -EventLogSource $EventLogSource -MessageType Verbose -Message $message } ElseIf ($LogPath -and (-NOT $EventLogSource)) { Out-PsLogging -LogPath $LogPath -MessageType Verbose -Message $message } Else { Out-PsLogging -ScreenOnly -MessageType Verbose -Message $message } }
 
     $url = "$ItGlueUriBase/jwt/token?refresh_token=$(($refreshToken.Content | ConvertFrom-Json).token)"
     $headers = @{ 'cache-control' = 'no-cache' }
@@ -95,11 +85,11 @@ Function Get-ItGlueJsonWebToken {
     }
     Catch {
         $message = ("{0}: Unexpected error getting a refresh token. To prevent errors, {1} will exit. The specific error is: {2}" -f [datetime]::Now, $MyInvocation.MyCommand, $_.Exception.Message)
-        If ($BlockLogging) { Write-Error $message } Else { Write-Error $message; Write-EventLog -LogName Application -Source $EventLogSource -EntryType Error -Message $message -EventId 5417 }
+        If ($EventLogSource -and (-NOT $LogPath)) { Out-PsLogging -EventLogSource $EventLogSource -MessageType Error -Message $message } ElseIf ($LogPath -and (-NOT $EventLogSource)) { Out-PsLogging -LogPath $LogPath -MessageType Error -Message $message } Else { Out-PsLogging -ScreenOnly -MessageType Error -Message $message }
 
         Return "Error"
     }
     #endregion get access token
 
     Return $accessToken
-} #1.0.0.6
+} #1.0.0.7
