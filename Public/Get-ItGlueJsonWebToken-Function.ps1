@@ -15,6 +15,7 @@ Function Get-ItGlueJsonWebToken {
             V1.0.0.5 date: 1 August 2019
             V1.0.0.6 date: 6 August 2019
             V1.0.0.7 date: 11 December 2019
+            V1.0.0.8 date: 18 May 2020
         .PARAMETER Credential
             ITGlue credential object for the desired local account.
         .PARAMETER ItGlueUriBase
@@ -42,13 +43,13 @@ Function Get-ItGlueJsonWebToken {
         [string]$LogPath
     )
 
-    $message = ("{0}: Beginning {1}." -f [datetime]::Now, $MyInvocation.MyCommand)
+    $message = ("{0}: Beginning {1}." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $MyInvocation.MyCommand)
     If ($PSBoundParameters['Verbose'] -or $VerbosePreference -eq 'Continue') { If ($EventLogSource -and (-NOT $LogPath)) { Out-PsLogging -EventLogSource $EventLogSource -MessageType Verbose -Message $message } ElseIf ($LogPath -and (-NOT $EventLogSource)) { Out-PsLogging -LogPath $LogPath -MessageType Verbose -Message $message } Else { Out-PsLogging -ScreenOnly -MessageType Verbose -Message $message } }
 
     # Initialize variables.
     $ItGlueUriBase = $ItGlueUriBase.TrimEnd('/')
 
-    $message = ("{0}: Step 1, get a refresh token." -f [datetime]::Now)
+    $message = ("{0}: Step 1, get a refresh token." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"))
     If ($PSBoundParameters['Verbose'] -or $VerbosePreference -eq 'Continue') { If ($EventLogSource -and (-NOT $LogPath)) { Out-PsLogging -EventLogSource $EventLogSource -MessageType Verbose -Message $message } ElseIf ($LogPath -and (-NOT $EventLogSource)) { Out-PsLogging -LogPath $LogPath -MessageType Verbose -Message $message } Else { Out-PsLogging -ScreenOnly -MessageType Verbose -Message $message } }
 
     #region get refresh token
@@ -66,7 +67,11 @@ Function Get-ItGlueJsonWebToken {
         $refreshToken = Invoke-WebRequest -UseBasicParsing -Uri $url -Headers $headers -Body ($base | ConvertTo-Json) -Method POST -ErrorAction Stop
     }
     Catch {
-        $message = ("{0}: Unexpected error getting a refresh token. To prevent errors, {1} will exit. The specific error is: {2}" -f [datetime]::Now, $MyInvocation.MyCommand, $_.Exception.Message)
+        $message = ("{0}: Unexpected error getting a refresh token. To prevent errors, {1} will exit. Error details, if present:`r`n`t
+        Error title: {2}`r`n`t
+        Error detail is: {3}`r`t`n
+        PowerShell returned: {4}" -f `
+        [datetime]::Now, $MyInvocation.MyCommand, ($_.ErrorDetails.message | ConvertFrom-Json).errors.title, (($_.ErrorDetails.message | ConvertFrom-Json -ErrorAction SilentlyContinue | Select-Object -ExpandProperty errors).detail), $_.Exception.Message)
         If ($EventLogSource -and (-NOT $LogPath)) { Out-PsLogging -EventLogSource $EventLogSource -MessageType Error -Message $message } ElseIf ($LogPath -and (-NOT $EventLogSource)) { Out-PsLogging -LogPath $LogPath -MessageType Error -Message $message } Else { Out-PsLogging -ScreenOnly -MessageType Error -Message $message }
 
         Return "Error"
@@ -74,7 +79,7 @@ Function Get-ItGlueJsonWebToken {
     #endregion get refresh token
 
     #region get access token
-    $message = ("{0}: Step 2, get an access token." -f [datetime]::Now)
+    $message = ("{0}: Step 2, get an access token." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"))
     If ($PSBoundParameters['Verbose'] -or $VerbosePreference -eq 'Continue') { If ($EventLogSource -and (-NOT $LogPath)) { Out-PsLogging -EventLogSource $EventLogSource -MessageType Verbose -Message $message } ElseIf ($LogPath -and (-NOT $EventLogSource)) { Out-PsLogging -LogPath $LogPath -MessageType Verbose -Message $message } Else { Out-PsLogging -ScreenOnly -MessageType Verbose -Message $message } }
 
     $url = "$ItGlueUriBase/jwt/token?refresh_token=$(($refreshToken.Content | ConvertFrom-Json).token)"
@@ -84,7 +89,7 @@ Function Get-ItGlueJsonWebToken {
         $accessToken = Invoke-WebRequest -UseBasicParsing -Uri $url -Headers $headers -Method GET -ErrorAction Stop
     }
     Catch {
-        $message = ("{0}: Unexpected error getting a refresh token. To prevent errors, {1} will exit. The specific error is: {2}" -f [datetime]::Now, $MyInvocation.MyCommand, $_.Exception.Message)
+        $message = ("{0}: Unexpected error getting a refresh token. To prevent errors, {1} will exit. The specific error is: {2}" -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $MyInvocation.MyCommand, $_.Exception.Message)
         If ($EventLogSource -and (-NOT $LogPath)) { Out-PsLogging -EventLogSource $EventLogSource -MessageType Error -Message $message } ElseIf ($LogPath -and (-NOT $EventLogSource)) { Out-PsLogging -LogPath $LogPath -MessageType Error -Message $message } Else { Out-PsLogging -ScreenOnly -MessageType Error -Message $message }
 
         Return "Error"
@@ -92,4 +97,4 @@ Function Get-ItGlueJsonWebToken {
     #endregion get access token
 
     Return $accessToken
-} #1.0.0.7
+} #1.0.0.8
