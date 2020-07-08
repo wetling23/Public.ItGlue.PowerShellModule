@@ -16,10 +16,13 @@ Function Get-ItGlueJsonWebToken {
             V1.0.0.6 date: 6 August 2019
             V1.0.0.7 date: 11 December 2019
             V1.0.0.8 date: 18 May 2020
+            V1.0.0.9 date: 8 July 2020
         .PARAMETER Credential
             ITGlue credential object for the desired local account.
         .PARAMETER ItGlueUriBase
             Base URL for the ITGlue customer.
+        .PARAMETER BlockStdErr
+            When set to $True, the script will block "Write-Error". Use this parameter when calling from wscript. This is required due to a bug in wscript (https://groups.google.com/forum/#!topic/microsoft.public.scripting.wsh/kIvQsqxSkSk).
         .PARAMETER EventLogSource
             When included, (and when LogPath is null), represents the event log source for the Application log. If no event log source or path are provided, output is sent only to the host.
         .PARAMETER LogPath
@@ -37,6 +40,8 @@ Function Get-ItGlueJsonWebToken {
         [Parameter(Mandatory = $True)]
         [ValidatePattern("^https?:\/\/[a-zA-Z0-9]+\.itglue\.com$")]
         [string]$ItGlueUriBase,
+
+        [boolean]$BlockStdErr = $false,
 
         [string]$EventLogSource,
 
@@ -72,7 +77,7 @@ Function Get-ItGlueJsonWebToken {
         Error detail is: {3}`r`t`n
         PowerShell returned: {4}" -f `
         [datetime]::Now, $MyInvocation.MyCommand, ($_.ErrorDetails.message | ConvertFrom-Json).errors.title, (($_.ErrorDetails.message | ConvertFrom-Json -ErrorAction SilentlyContinue | Select-Object -ExpandProperty errors).detail), $_.Exception.Message)
-        If ($EventLogSource -and (-NOT $LogPath)) { Out-PsLogging -EventLogSource $EventLogSource -MessageType Error -Message $message } ElseIf ($LogPath -and (-NOT $EventLogSource)) { Out-PsLogging -LogPath $LogPath -MessageType Error -Message $message } Else { Out-PsLogging -ScreenOnly -MessageType Error -Message $message }
+        If ($EventLogSource -and (-NOT $LogPath)) { Out-PsLogging -EventLogSource $EventLogSource -MessageType Error -Message $message -BlockStdErr $true } ElseIf ($LogPath -and (-NOT $EventLogSource)) { Out-PsLogging -LogPath $LogPath -MessageType Error -Message $message -BlockStdErr $true } Else { Out-PsLogging -ScreenOnly -MessageType Error -Message $message -BlockStdErr $true }
 
         Return "Error"
     }
@@ -90,11 +95,11 @@ Function Get-ItGlueJsonWebToken {
     }
     Catch {
         $message = ("{0}: Unexpected error getting a refresh token. To prevent errors, {1} will exit. The specific error is: {2}" -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $MyInvocation.MyCommand, $_.Exception.Message)
-        If ($EventLogSource -and (-NOT $LogPath)) { Out-PsLogging -EventLogSource $EventLogSource -MessageType Error -Message $message } ElseIf ($LogPath -and (-NOT $EventLogSource)) { Out-PsLogging -LogPath $LogPath -MessageType Error -Message $message } Else { Out-PsLogging -ScreenOnly -MessageType Error -Message $message }
+        If ($EventLogSource -and (-NOT $LogPath)) { Out-PsLogging -EventLogSource $EventLogSource -MessageType Error -Message $message -BlockStdErr $true } ElseIf ($LogPath -and (-NOT $EventLogSource)) { Out-PsLogging -LogPath $LogPath -MessageType Error -Message $message -BlockStdErr $true } Else { Out-PsLogging -ScreenOnly -MessageType Error -Message $message -BlockStdErr $true }
 
         Return "Error"
     }
     #endregion get access token
 
     Return $accessToken
-} #1.0.0.8
+} #1.0.0.9

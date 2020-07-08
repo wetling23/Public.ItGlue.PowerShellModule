@@ -7,6 +7,7 @@ Function Remove-ItGlueDeviceConfig {
                 - Initial release.
             V1.0.0.1 date: 11 December 2019
             V1.0.0.2 date: 18 May 2020
+            V1.0.0.3 date: 8 July 2020
         .LINK
             https://github.com/wetling23/Public.ItGlue.PowerShellModule
         .PARAMETER ApiKey
@@ -17,6 +18,8 @@ Function Remove-ItGlueDeviceConfig {
             Identifier ID for the desired configuration item.
         .PARAMETER UriBase
             Base URL for the ITGlue API.
+        .PARAMETER BlockStdErr
+            When set to $True, the script will block "Write-Error". Use this parameter when calling from wscript. This is required due to a bug in wscript (https://groups.google.com/forum/#!topic/microsoft.public.scripting.wsh/kIvQsqxSkSk).
         .PARAMETER EventLogSource
             When included, (and when LogPath is null), represents the event log source for the Application log. If no event log source or path are provided, output is sent only to the host.
         .PARAMETER LogPath
@@ -45,6 +48,8 @@ Function Remove-ItGlueDeviceConfig {
 
         [Alias("ItGlueUriBase")]
         [string]$UriBase = "https://api.itglue.com",
+
+        [boolean]$BlockStdErr = $false,
 
         [string]$EventLogSource,
 
@@ -136,7 +141,7 @@ Function Remove-ItGlueDeviceConfig {
             }
             ElseIf (($_.ErrorDetails.message | ConvertFrom-Json | Select-Object -ExpandProperty errors).detail -eq "The request took too long to process and timed out.") {
                 $message = ("{0}: The request for {1} timed out. {2} will exit." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $CustomerId, $MyInvocation.MyCommand)
-                If ($EventLogSource -and (-NOT $LogPath)) { Out-PsLogging -EventLogSource $EventLogSource -MessageType Error -Message $message } ElseIf ($LogPath -and (-NOT $EventLogSource)) { Out-PsLogging -LogPath $LogPath -MessageType Error -Message $message } Else { Out-PsLogging -ScreenOnly -MessageType Error -Message $message }
+                If ($EventLogSource -and (-NOT $LogPath)) { Out-PsLogging -EventLogSource $EventLogSource -MessageType Error -Message $message -BlockStdErr $true } ElseIf ($LogPath -and (-NOT $EventLogSource)) { Out-PsLogging -LogPath $LogPath -MessageType Error -Message $message -BlockStdErr $true } Else { Out-PsLogging -ScreenOnly -MessageType Error -Message $message -BlockStdErr $true }
 
                 Return "Error"
             }
@@ -146,7 +151,7 @@ Function Remove-ItGlueDeviceConfig {
                 Error detail is: {3}`r`t`n
                 PowerShell returned: {4}" -f `
                         [datetime]::Now, $MyInvocation.MyCommand, ($_.ErrorDetails.message | ConvertFrom-Json).errors.title, (($_.ErrorDetails.message | ConvertFrom-Json -ErrorAction SilentlyContinue | Select-Object -ExpandProperty errors).detail), $_.Exception.Message)
-                If ($EventLogSource -and (-NOT $LogPath)) { Out-PsLogging -EventLogSource $EventLogSource -MessageType Error -Message $message } ElseIf ($LogPath -and (-NOT $EventLogSource)) { Out-PsLogging -LogPath $LogPath -MessageType Error -Message $message } Else { Out-PsLogging -ScreenOnly -MessageType Error -Message $message }
+                If ($EventLogSource -and (-NOT $LogPath)) { Out-PsLogging -EventLogSource $EventLogSource -MessageType Error -Message $message -BlockStdErr $true } ElseIf ($LogPath -and (-NOT $EventLogSource)) { Out-PsLogging -LogPath $LogPath -MessageType Error -Message $message -BlockStdErr $true } Else { Out-PsLogging -ScreenOnly -MessageType Error -Message $message -BlockStdErr $true }
 
                 Return "Error"
             }
@@ -155,4 +160,4 @@ Function Remove-ItGlueDeviceConfig {
     While ($stopLoop -eq $false)
 
     Return $response
-} #1.0.0.2
+} #1.0.0.3

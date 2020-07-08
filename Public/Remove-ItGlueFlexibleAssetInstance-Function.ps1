@@ -34,6 +34,8 @@ Function Remove-ItGlueFlexibleAssetInstance {
             Identifier ID for the desired flexible asset type.
         .PARAMETER UriBase
             Base URL for the ITGlue API.
+        .PARAMETER BlockStdErr
+            When set to $True, the script will block "Write-Error". Use this parameter when calling from wscript. This is required due to a bug in wscript (https://groups.google.com/forum/#!topic/microsoft.public.scripting.wsh/kIvQsqxSkSk).
         .PARAMETER EventLogSource
             When included, (and when LogPath is null), represents the event log source for the Application log. If no event log source or path are provided, output is sent only to the host.
         .PARAMETER LogPath
@@ -62,6 +64,8 @@ Function Remove-ItGlueFlexibleAssetInstance {
 
         [Alias("ItGlueUriBase")]
         [string]$UriBase = "https://api.itglue.com",
+
+        [boolean]$BlockStdErr = $false,
 
         [string]$EventLogSource,
 
