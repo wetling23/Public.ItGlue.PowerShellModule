@@ -23,6 +23,7 @@ Function Remove-ItGlueFlexibleAssetInstance {
             V1.0.0.12 date: 11 December 2019
             V1.0.0.13 date: 18 May 2020
             V1.0.0.14 date: 11 June 2020
+            V1.0.0.15 date: 8 July 2020
         .LINK
             https://github.com/wetling23/Public.ItGlue.PowerShellModule
         .PARAMETER ApiKey
@@ -156,6 +157,22 @@ Function Remove-ItGlueFlexibleAssetInstance {
 
                 Return "Error"
             }
+            ElseIf ($_.Exception.Message -eq 'The underlying connection was closed: A connection that was expected to be kept alive was closed by the server') {
+                $connectionClosedCount++
+
+                If ($connectionClosedCount -le 2) {
+                    $message = ("{0}: It appears that ITGlue closed the connection. Waiting 60 seconds, then trying again (up to two times)." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"))
+                    If ($EventLogSource -and (-NOT $LogPath)) { Out-PsLogging -EventLogSource $EventLogSource -MessageType Error -Message $message } ElseIf ($LogPath -and (-NOT $EventLogSource)) { Out-PsLogging -LogPath $LogPath -MessageType Error -Message $message } Else { Out-PsLogging -ScreenOnly -MessageType Error -Message $message }
+
+                    Start-Sleep -Seconds 60
+                }
+                Else {
+                    $message = ("{0}: ITGlue closed the connection too many times." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"))
+                    If ($EventLogSource -and (-NOT $LogPath)) { Out-PsLogging -EventLogSource $EventLogSource -MessageType Error -Message $message } ElseIf ($LogPath -and (-NOT $EventLogSource)) { Out-PsLogging -LogPath $LogPath -MessageType Error -Message $message } Else { Out-PsLogging -ScreenOnly -MessageType Error -Message $message }
+
+                    Return "Error"
+                }
+            }
             Else {
                 $message = ("{0}: Unexpected error getting instances. To prevent errors, {1} will exit. Error details, if present:`r`n`t
                 Error title: {2}`r`n`t
@@ -171,4 +188,4 @@ Function Remove-ItGlueFlexibleAssetInstance {
     While ($stopLoop -eq $false)
 
     Return $response
-} #1.0.0.13
+} #1.0.0.15
