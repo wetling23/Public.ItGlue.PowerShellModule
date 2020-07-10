@@ -31,6 +31,7 @@ Function Out-ItGlueFlexibleAsset {
             V1.0.0.15 date: 9 August 2019
             V1.0.0.16 date: 11 December 2019
             V1.0.0.17 date: 18 May 2020
+            V1.0.0.18 date: 10 July 2020
         .LINK
             https://github.com/wetling23/Public.ItGlue.PowerShellModule
         .PARAMETER Data
@@ -45,6 +46,8 @@ Function Out-ItGlueFlexibleAsset {
             ITGlue credential object for the desired local account.
         .PARAMETER UriBase
             Base URL for the ITGlue API.
+        .PARAMETER BlockStdErr
+            When set to $True, the script will block "Write-Error". Use this parameter when calling from wscript. This is required due to a bug in wscript (https://groups.google.com/forum/#!topic/microsoft.public.scripting.wsh/kIvQsqxSkSk).
         .PARAMETER EventLogSource
             When included, (and when LogPath is null), represents the event log source for the Application log. If no event log source or path are provided, output is sent only to the host.
         .PARAMETER LogPath
@@ -82,6 +85,8 @@ Function Out-ItGlueFlexibleAsset {
         [System.Management.Automation.PSCredential]$UserCred,
 
         [string]$ItGlueUriBase = "https://api.itglue.com",
+
+        [boolean]$BlockStdErr = $false,
 
         [string]$EventLogSource,
 
@@ -211,4 +216,4 @@ Function Out-ItGlueFlexibleAsset {
     While ($stopLoop -eq $false)
 
     $response
-} #1.0.0.17
+} #1.0.0.18

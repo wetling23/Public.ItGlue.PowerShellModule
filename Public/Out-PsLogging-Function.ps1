@@ -69,7 +69,7 @@ Function Out-PsLogging {
         [ValidateSet('Info', 'Warning', 'Error', 'Verbose', 'First')]
         [string]$MessageType,
 
-        [boolean]$BlockStdErr
+        [boolean]$BlockStdErr = $false
     )
 
     # Initialize variables.
