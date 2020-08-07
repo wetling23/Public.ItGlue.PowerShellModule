@@ -18,6 +18,7 @@ Function Get-ItGlueDeviceConfig {
             V1.0.0.16 date: 18 May 2020
             V1.0.0.17 date: 8 July 2020
             V1.0.0.18 date: 7 August 2020
+            V1.0.0.19 date: 7 August 2020
         .LINK
             https://github.com/wetling23/Public.ItGlue.PowerShellModule
         .PARAMETER ComputerName
@@ -333,7 +334,7 @@ Function Get-ItGlueDeviceConfig {
                     }
                 }
                 Else {
-                    ElseIf (($loopCount -le 5) -and (($_.ErrorDetails.message | ConvertFrom-Json | Select-Object -ExpandProperty errors).detail -eq "The request took too long to process and timed out.")) {
+                    If (($loopCount -le 5) -and (($_.ErrorDetails.message | ConvertFrom-Json | Select-Object -ExpandProperty errors).detail -eq "The request took too long to process and timed out.")) {
                         $message = ("{0}: The request timed out and the loop count is {1} of 5, re-trying the query." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $loopCount)
                         If ($EventLogSource -and (-NOT $LogPath)) { Out-PsLogging -EventLogSource $EventLogSource -MessageType Warning -Message $message } ElseIf ($LogPath -and (-NOT $EventLogSource)) { Out-PsLogging -LogPath $LogPath -MessageType Warning -Message $message } Else { Out-PsLogging -ScreenOnly -MessageType Warning -Message $message }
 
@@ -610,4 +611,4 @@ Function Get-ItGlueDeviceConfig {
         Return "Error"
     }
     #endregion Main
-} #1.0.0.18
+} #1.0.0.19
