@@ -8,6 +8,9 @@ This project is also published in the PowerShell Gallery at https://www.powershe
 * From GitHub: Save `/bin/<version>/ItGlue/<files>` to your module directory
 
 # Behavior changes
+## 1.0.0.44
+* Added the following commands: Get-ItGlueLocation, Get-ItGlueManufacturer, Get-ItGlueModel, Out-ItGlueAsset, and Remove-ItGlueDeviceConfig
+* Updated how HTTP 429 is processed. Instead of trying indefintely, the cmdlets will exit with "Error" after 10 attempts (with one minute between each attempt). If you are being rate limited for 10 consecutive attempts, the daily limit (10k calls) has likely been reached.
 ## 1.0.0.32
 * New behavior in logging. Instead of only logging to the Windows event log, the module now defaults to host only.
 * The EventLogSource parameter is still available. If the provided source does not exist, the command will switch to host-only output.
