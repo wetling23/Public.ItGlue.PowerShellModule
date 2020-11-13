@@ -26,6 +26,7 @@ Function Get-ItGlueOrganization {
             V1.0.0.13 date: 18 May 2020
             V1.0.0.14 date: 8 July 2020
             V1.0.0.15 date: 7 August 2020
+            V1.0.0.16 date: 13 November 2020
         .LINK
             https://github.com/wetling23/Public.ItGlue.PowerShellModule
         .PARAMETER OrganizationName
@@ -157,7 +158,7 @@ Function Get-ItGlueOrganization {
     #region Main
     If (-NOT(($OrganizationName) -or ($OrganizationId))) {
         $message = ("{0}: No customer name or ID supplied. Defaulting to retrieving all organizations." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $MyInvocation.MyCommand)
-        If ($EventLogSource -and (-NOT $LogPath)) { Out-PsLogging -EventLogSource $EventLogSource -MessageType Error -Message $message -BlockStdErr $BlockStdErr } ElseIf ($LogPath -and (-NOT $EventLogSource)) { Out-PsLogging -LogPath $LogPath -MessageType Error -Message $message -BlockStdErr $BlockStdErr } Else { Out-PsLogging -ScreenOnly -MessageType Error -Message $message -BlockStdErr $BlockStdErr }
+        If ($EventLogSource -and (-NOT $LogPath)) { Out-PsLogging -EventLogSource $EventLogSource -MessageType Verbose -Message $message } ElseIf ($LogPath -and (-NOT $EventLogSource)) { Out-PsLogging -LogPath $LogPath -MessageType Verbose -Message $message } Else { Out-PsLogging -ScreenOnly -MessageType Verbose -Message $message }
 
         $OrganizationName = "All"
     }
@@ -513,9 +514,9 @@ Function Get-ItGlueOrganization {
                     }
                     Else {
                         $message = ("{0}: Unexpected error getting instances. To prevent errors, {1} will exit. Error details, if present:`r`n`t
-                Error title: {2}`r`n`t
-                Error detail is: {3}`r`t`n
-                PowerShell returned: {4}" -f `
+                            Error title: {2}`r`n`t
+                            Error detail is: {3}`r`t`n
+                            PowerShell returned: {4}" -f `
                             ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $MyInvocation.MyCommand, ($_.ErrorDetails.message | ConvertFrom-Json).errors.title, (($_.ErrorDetails.message | ConvertFrom-Json -ErrorAction SilentlyContinue | Select-Object -ExpandProperty errors).detail), $_.Exception.Message)
                         If ($EventLogSource -and (-NOT $LogPath)) { Out-PsLogging -EventLogSource $EventLogSource -MessageType Error -Message $message -BlockStdErr $BlockStdErr } ElseIf ($LogPath -and (-NOT $EventLogSource)) { Out-PsLogging -LogPath $LogPath -MessageType Error -Message $message -BlockStdErr $BlockStdErr } Else { Out-PsLogging -ScreenOnly -MessageType Error -Message $message -BlockStdErr $BlockStdErr }
 
@@ -529,4 +530,4 @@ Function Get-ItGlueOrganization {
         Return $retrievedInstanceCollection.data
     }
     #endregion Main
-} #1.0.0.15
+} #1.0.0.16
