@@ -4,7 +4,7 @@
     RootModule        = 'ItGlue.psm1'
 
     # Version number of this module.
-    ModuleVersion     = '1.0.0.45'
+    ModuleVersion     = '1.0.0.47'
 
     # ID used to uniquely identify this module
     GUID              = '92785682-4c93-4ef3-87aa-bf70c232aa52'
@@ -58,8 +58,9 @@
     # NestedModules = @()
 
     # Functions to export from this module
-    FunctionsToExport = 'Get-ItGlueDeviceConfig', 'Get-ItGlueFlexibleAssetInstance', 'Get-ItGlueJsonWebToken',
-    'Get-ItGlueLocation', 'Get-ItGlueManufacturer', 'Get-ItGlueModel', 'Get-ItGlueOrganization',
+    FunctionsToExport = 'Get-ItGlueDeviceConfig', 'Get-ItGlueFlexibleAssetField',
+    'Get-ItGlueFlexibleAssetInstance', 'Get-ItGlueJsonWebToken', 'Get-ItGlueLocation',
+    'Get-ItGlueManufacturer', 'Get-ItGlueModel', 'Get-ItGlueOrganization',
     'Out-ItGlueAsset', 'Out-ItGlueFlexibleAsset', 'Out-PsLogging',
     'Remove-ItGlueDeviceConfig', 'Remove-ItGlueFlexibleAssetInstance'
 
@@ -96,7 +97,7 @@
             # IconUri = ''
 
             # ReleaseNotes of this module
-            ReleaseNotes = 'Updated Get-ItGlueDeviceConfig to V1.0.0.19 (bug in if/elseif).'
+            ReleaseNotes = 'Added Get-ItGlueFlexibleAssetField.'
 
             # External dependent modules of this module
             # ExternalModuleDependencies = ''
