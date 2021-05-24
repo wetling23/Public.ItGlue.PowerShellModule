@@ -33,6 +33,7 @@ Function Out-ItGlueFlexibleAsset {
             V1.0.0.17 date: 18 May 2020
             V1.0.0.18 date: 10 July 2020
             V1.0.0.19 date: 7 August 2020
+            V1.0.0.20 date: 9 May 2021
         .LINK
             https://github.com/wetling23/Public.ItGlue.PowerShellModule
         .PARAMETER Data
@@ -218,14 +219,23 @@ Function Out-ItGlueFlexibleAsset {
                     Return "Error"
                 }
                 Else {
-                    $message = ("{0}: Unexpected error uploading to ITGlue. To prevent errors, {1} will exit. Error details, if present:`r`n`t
-                Error title: {2}`r`n`t
-                Error detail is: {3}`r`t`n
-                PowerShell returned: {4}" -f `
-                        ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $MyInvocation.MyCommand, ($_.ErrorDetails.message | ConvertFrom-Json).errors.title, ((($_.ErrorDetails.message | ConvertFrom-Json -ErrorAction SilentlyContinue | Select-Object -ExpandProperty errors).detail) | Out-String), $_.Exception.Message)
-                    If ($EventLogSource -and (-NOT $LogPath)) { Out-PsLogging -EventLogSource $EventLogSource -MessageType Error -Message $message } ElseIf ($LogPath -and (-NOT $EventLogSource)) { Out-PsLogging -LogPath $LogPath -MessageType Error -Message $message } Else { Out-PsLogging -ScreenOnly -MessageType Error -Message $message }
+                    If (($_.ErrorDetails.message) -and ($_.ErrorDetails.message -match "Invalid JSON format")) {
+                        $message = ("{0}: ITGlue reported invalid JSON. The provided value was: {1}" -f ($Data | ConvertTo-Json -Depth 10))
+                        If ($EventLogSource -and (-NOT $LogPath)) { Out-PsLogging -EventLogSource $EventLogSource -MessageType Error -Message $message } ElseIf ($LogPath -and (-NOT $EventLogSource)) { Out-PsLogging -LogPath $LogPath -MessageType Error -Message $message } Else { Out-PsLogging -ScreenOnly -MessageType Error -Message $message }
 
-                    Return "Error"
+                        Return "Error"
+                    }
+                    Else {
+                        $message = ("{0}: Unexpected error uploading to ITGlue. To prevent errors, {1} will exit. Error details, if present:`r`n`t
+                            Error title: {2}`r`n`t
+                            Error detail is: {3}`r`t`n
+                            PowerShell returned: {4}" -f `
+                            ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $MyInvocation.MyCommand, ($_.ErrorDetails.message | ConvertFrom-Json).errors.title, ((($_.ErrorDetails.message | ConvertFrom-Json -ErrorAction SilentlyContinue | Select-Object -ExpandProperty errors).detail) | Out-String), $_.Exception.Message)
+                        If ($EventLogSource -and (-NOT $LogPath)) { Out-PsLogging -EventLogSource $EventLogSource -MessageType Error -Message $message } ElseIf ($LogPath -and (-NOT $EventLogSource)) { Out-PsLogging -LogPath $LogPath -MessageType Error -Message $message } Else { Out-PsLogging -ScreenOnly -MessageType Error -Message $message }
+
+                        Return "Error"
+
+                    }
                 }
             }
         }
@@ -234,4 +244,4 @@ Function Out-ItGlueFlexibleAsset {
     #endregion Main
 
     $response
-} #1.0.0.19
+} #1.0.0.20
