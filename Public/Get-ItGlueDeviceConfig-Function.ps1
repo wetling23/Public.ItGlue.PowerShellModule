@@ -20,6 +20,7 @@ Function Get-ItGlueDeviceConfig {
             V1.0.0.18 date: 7 August 2020
             V1.0.0.19 date: 7 August 2020
             V1.0.0.20 date: 11 November 2021
+            V1.0.0.21 date: 16 November 2021
         .LINK
             https://github.com/wetling23/Public.ItGlue.PowerShellModule
         .PARAMETER ComputerName
@@ -83,7 +84,8 @@ Function Get-ItGlueDeviceConfig {
         [Alias("ItGlueCustomerId", "CustomerId")]
         [int64]$OrganizationId,
 
-        [hashtable]$Filters,
+        [Alias("Filters")]
+        [hashtable]$Filter,
 
         [Alias("ItGlueApiKey")]
         [Parameter(ParameterSetName = 'ApiKey', Mandatory)]
@@ -735,4 +737,4 @@ Function Get-ItGlueDeviceConfig {
         }
     }
     #endregion Main
-} #1.0.0.20
+} #1.0.0.21
