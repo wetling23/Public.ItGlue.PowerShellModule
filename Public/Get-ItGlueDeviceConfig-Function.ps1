@@ -21,6 +21,7 @@ Function Get-ItGlueDeviceConfig {
             V1.0.0.19 date: 7 August 2020
             V1.0.0.20 date: 11 November 2021
             V1.0.0.21 date: 16 November 2021
+            V1.0.0.22 date: 24 November 2021
         .LINK
             https://github.com/wetling23/Public.ItGlue.PowerShellModule
         .PARAMETER ComputerName
@@ -175,30 +176,30 @@ Function Get-ItGlueDeviceConfig {
     #endregion Setup
 
     #region Parse filters
-    If ($Filters) {
-        $message = ("{0}: Checking `$Filters for unsupported keys, and removing them." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"))
+    If ($Filter) {
+        $message = ("{0}: Checking `$Filter for unsupported keys, and removing them." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"))
         If ($PSBoundParameters['Verbose'] -or $VerbosePreference -eq 'Continue') { If ($EventLogSource -and (-NOT $LogPath)) { Out-PsLogging -EventLogSource $EventLogSource -MessageType Verbose -Message $message } ElseIf ($LogPath -and (-NOT $EventLogSource)) { Out-PsLogging -LogPath $LogPath -MessageType Verbose -Message $message } Else { Out-PsLogging -ScreenOnly -MessageType Verbose -Message $message } }
 
-        $filterClone = $Filters.Clone()
+        $filterClone = $Filter.Clone()
         Foreach ($key in $filterClone.GetEnumerator()) {
             If ($key.Name -notin @("id", "name", "organization_id", "configuration_type_id", "configuration_status_id", "contact_id", "serial_number", "asset_tag", "psa_id", "psa_integration_type", "rmm_id", "rmm_integration_type", "archived" )) {
                 $message = ("{0}: The key, {1} is not in the allowed list, removing it from the filter." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $key.Name)
                 If ($PSBoundParameters['Verbose'] -or $VerbosePreference -eq 'Continue') { If ($EventLogSource -and (-NOT $LogPath)) { Out-PsLogging -EventLogSource $EventLogSource -MessageType Verbose -Message $message } ElseIf ($LogPath -and (-NOT $EventLogSource)) { Out-PsLogging -LogPath $LogPath -MessageType Verbose -Message $message } Else { Out-PsLogging -ScreenOnly -MessageType Verbose -Message $message } }
 
-                $Filters.Remove($key.Key)
+                $Filter.Remove($key.Key)
             } ElseIf ($key.Name -notmatch 'filter\[.*\]') {
-                $Filters."filter[$($key.Name)]" = $($key.value)
-                $Filters.Remove($key.Key)
+                $Filter."filter[$($key.Name)]" = $($key.value)
+                $Filter.Remove($key.Key)
             }
         }
 
-        $message = ("{0}: Using filter:`r`n{1}" -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), ($Filters | Out-String))
+        $message = ("{0}: Using filter:`r`n{1}" -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), ($Filter | Out-String))
         If ($PSBoundParameters['Verbose'] -or $VerbosePreference -eq 'Continue') { If ($EventLogSource -and (-NOT $LogPath)) { Out-PsLogging -EventLogSource $EventLogSource -MessageType Verbose -Message $message } ElseIf ($LogPath -and (-NOT $EventLogSource)) { Out-PsLogging -LogPath $LogPath -MessageType Verbose -Message $message } Else { Out-PsLogging -ScreenOnly -MessageType Verbose -Message $message } }
     }
     #endregion Parse filters
 
     #region Main
-    If ($Filters) {
+    If ($Filter) {
         $page = 1
         Do {
             $loopCount = 1
@@ -208,11 +209,11 @@ Function Get-ItGlueDeviceConfig {
                 "page[number]" = $page
             }
 
-            $apiFilter = $Filters + $queryBody
+            $apiFilter = $Filter + $queryBody
 
             Do {
                 Try {
-                    $message = ("{0}: Sending the following:`r`nBody: {1}`r`nUrl: {2}" -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), ($Filters + $queryBody | Out-String), "$UriBase/flexible_assets")
+                    $message = ("{0}: Sending the following:`r`nBody: {1}`r`nUrl: {2}" -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), ($Filter + $queryBody | Out-String), "$UriBase/flexible_assets")
                     If ($PSBoundParameters['Verbose'] -or $VerbosePreference -eq 'Continue') { If ($EventLogSource -and (-NOT $LogPath)) { Out-PsLogging -EventLogSource $EventLogSource -MessageType Verbose -Message $message } ElseIf ($LogPath -and (-NOT $EventLogSource)) { Out-PsLogging -LogPath $LogPath -MessageType Verbose -Message $message } Else { Out-PsLogging -ScreenOnly -MessageType Verbose -Message $message } }
 
                     $response = Invoke-RestMethod -Method GET -Headers $header -Uri "$UriBase/configurations" -Body $apiFilter -ErrorAction Stop
@@ -737,4 +738,4 @@ Function Get-ItGlueDeviceConfig {
         }
     }
     #endregion Main
-} #1.0.0.21
+} #1.0.0.22
