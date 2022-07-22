@@ -478,7 +478,7 @@ Function Get-ItGlueOrganization {
         $stopLoop = $false
         Do {
             Try {
-                (Invoke-RestMethod -Method GET -Headers $header -Uri "$UriBase/organizations/$OrganizationId"-ErrorAction Stop) | ForEach-Object { $retrievedInstanceCollection.Add($_) }
+                (Invoke-RestMethod -Method GET -Headers $header -Uri "$UriBase/organizations/$OrganizationId" -ErrorAction Stop) | ForEach-Object { $retrievedInstanceCollection.Add($_) }
 
                 $stopLoop = $True
             }
