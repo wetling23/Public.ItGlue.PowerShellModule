@@ -5,6 +5,7 @@ Function Get-ItGlueContact {
         .NOTES
             V1.0.0.0 date: 16 November 2021
             V1.0.0.1 date: 12 July 2022
+            V1.0.0.2 date: 22 July 2022
         .LINK
             https://github.com/wetling23/Public.ItGlue.PowerShellModule
         .PARAMETER ContactId
@@ -59,7 +60,7 @@ pecific names
     [CmdletBinding(DefaultParameterSetName = 'AllContacts')]
     param (
         [Parameter(ParameterSetName = 'ContactIdFilter', Mandatory)]
-        [Int64]8390198,
+        [Int64]$ContactId,
 
         [Parameter(ParameterSetName = 'HashtableFilter', Mandatory)]
         [Hashtable]$Filter,
@@ -350,4 +351,4 @@ pecific names
         }
     }
     #endregion Main
-} #1.0.0.1
+} #1.0.0.2
