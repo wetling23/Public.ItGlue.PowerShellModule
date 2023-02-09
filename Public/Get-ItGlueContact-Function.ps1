@@ -6,11 +6,12 @@ Function Get-ItGlueContact {
             V1.0.0.0 date: 16 November 2021
             V1.0.0.1 date: 12 July 2022
             V1.0.0.2 date: 22 July 2022
+            V2023.02.09.0
         .LINK
             https://github.com/wetling23/Public.ItGlue.PowerShellModule
         .PARAMETER ContactId
             Represents the ID of the desired contact instance.
-        .PARAMETER Filters
+        .PARAMETER Filter
             Represents a hashtable of supported API filters. If non-supported keys are included, the cmdlet will remove them before further processing. As of 16 November 2021, the following values are supported:
 
             id, first_name, last_name, title, contact_type_id, important, primary_email, organization_id, psa_id, psa_integration_type (manage, autotask, tigerpaw, kaseya-bms, pulseway-psa, vorex)
@@ -31,7 +32,7 @@ Function Get-ItGlueContact {
         .PARAMETER LogPath
             When included (when EventLogSource is null), represents the file, to which the cmdlet will output will be logged. If no path or event log source are provided, output is sent only to the host.
         .EXAMPLE
-            PS C:\> Get-ItGlueContact -Filters @{ organization_id = 456 } -ApiKey (ITG.XXXXXXXXXXXXX | ConvertTo-SecureString -AsPlainText -Force)
+            PS C:\> Get-ItGlueContact -Filter @{ organization_id = 456 } -ApiKey (ITG.XXXXXXXXXXXXX | ConvertTo-SecureString -AsPlainText -Force)
 
             In this example, the cmdlet will get the contact(s) associated with the organization with ID 456, using the provided ITGlue API key. Limited logging output is sent only to the host.
         .EXAMPLE
@@ -351,4 +352,4 @@ pecific names
         }
     }
     #endregion Main
-} #1.0.0.2
+} #2023.02.09.0

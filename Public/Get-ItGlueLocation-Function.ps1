@@ -5,6 +5,7 @@ Function Get-ItGlueLocation {
         .NOTES
             V1.0.0.0 date: 16 July 2020
             V1.0.0.1 date: 7 August 2020
+            V2023.02.08.0
         .LINK
             https://github.com/wetling23/Public.ItGlue.PowerShellModule
         .PARAMETER Id
@@ -52,7 +53,7 @@ Function Get-ItGlueLocation {
         [Alias("CustomerName")]
         [string]$OrganizationName,
 
-        [Alias("ItGlueCustomerId", "OrganizationId")]
+        [Alias("ItGlueCustomerId")]
         [int64]$OrganizationId,
 
         [Alias("ItGlueApiKey")]
@@ -610,4 +611,4 @@ Function Get-ItGlueLocation {
         Return $retrievedInstanceCollection
     }
     #endregion Main
-} #1.0.0.1
+} #2023.02.08.0

@@ -4,7 +4,7 @@
     RootModule        = 'ItGlue.psm1'
 
     # Version number of this module.
-    ModuleVersion     = '1.0.0.55'
+    ModuleVersion     = '2023.02.09.0'
 
     # ID used to uniquely identify this module
     GUID              = '92785682-4c93-4ef3-87aa-bf70c232aa52'
@@ -16,7 +16,7 @@
     CompanyName       = ''
 
     # Copyright statement for this module
-    Copyright         = '(c) 2021 mhashemi. All rights reserved.'
+    Copyright         = '(c) 2023 mhashemi. All rights reserved.'
 
     # Description of the functionality provided by this module
     Description       = 'ITGlue REST API-related functions.'
@@ -61,7 +61,7 @@
     FunctionsToExport = 'Get-ItGlueContact', 'Get-ItGlueDeviceConfig', 'Get-ItGlueGroup',
     'Get-ItGlueFlexibleAssetField', 'Get-ItGlueFlexibleAssetInstance', 'Get-ItGlueJsonWebToken',
     'Get-ItGlueLocation', 'Get-ItGlueManufacturer', 'Get-ItGlueModel', 'Get-ItGlueOrganization',
-    'Get-ItGlueUser',
+    'Get-ItGluePassword', 'Get-ItGlueUser',
     'Out-ItGlueAsset', 'Out-ItGlueFlexibleAsset', 'Out-PsLogging',
     'Remove-ItGlueDeviceConfig', 'Remove-ItGlueFlexibleAssetInstance'
 
@@ -98,7 +98,7 @@
             # IconUri = ''
 
             # ReleaseNotes of this module
-            ReleaseNotes = 'Updated Get-ItGlueContact to 1.0.0.2 (fixed bug in parameter definition).'
+            ReleaseNotes = 'Updated Get-ItGlueLocation to 2023.02.08.0 (fixed alias bug) and Get-ItGlueContact to 2023.02.09.0 (fixed parameter-name mistake). Added Get-ItGluePassword.'
 
             # External dependent modules of this module
             # ExternalModuleDependencies = ''
