@@ -5,6 +5,9 @@ Function Get-ItGlueFlexibleAssetField {
         .NOTES
             V1.0.0.0 date: 19 March 2021
                 - Initial release
+            V2023.03.06.0
+            V2023.03.06.1
+            V2023.03.30.0
         .LINK
             https://github.com/wetling23/Public.ItGlue.PowerShellModule
         .PARAMETER ApiKey
@@ -30,13 +33,14 @@ Function Get-ItGlueFlexibleAssetField {
         .EXAMPLE
             PS C:\> Get-Get-ItGlueFlexibleAssetField -ApiKey (ITG.XXXXXXXXXXXXX | ConvertTo-SecureString -AsPlainText -Force) -LogPath C:\temp\log.txt
 
-            In this example, the cmdlet will return propreties of flexible asset types, using the provided ITGlue API key. Limited logging output is sent to the host and C:\temp\log.txt.
+            In this example, the cmdlet will return propreties of all flexible asset types, using the provided ITGlue API key. Limited logging output is sent to the host and C:\temp\log.txt.
         .EXAMPLE
             PS C:\> Get-Get-ItGlueFlexibleAssetField -Id 123456 -Credential (Get-Credential) -LogPath C:\Temp\log.txt
 
             In this example, the cmdlet will return properties of the flexible asset type 123456, using the provided ITGlue user credentials. Limited logging output is sent to the host and C:\temp\log.txt.
     #>
     [CmdletBinding(DefaultParameterSetName = 'ApiKey')]
+    [Alias("Get-ItGlueFlexibleAssetType")]
     param (
         [Alias("ItGlueApiKey")]
         [Parameter(ParameterSetName = 'ApiKey', Mandatory)]
@@ -46,7 +50,6 @@ Function Get-ItGlueFlexibleAssetField {
         [Parameter(ParameterSetName = 'UserCred', Mandatory)]
         [System.Management.Automation.PSCredential]$Credential,
 
-        [Parameter(Mandatory = $True)]
         $Id,
 
         [Alias("ItGlueUriBase")]
@@ -62,59 +65,53 @@ Function Get-ItGlueFlexibleAssetField {
         [string]$LogPath
     )
 
-    $message = ("{0}: Beginning {1}." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $MyInvocation.MyCommand)
-    If ($PSBoundParameters['Verbose'] -or $VerbosePreference -eq 'Continue') { If ($EventLogSource -and (-NOT $LogPath)) { Out-PsLogging -EventLogSource $EventLogSource -MessageType Verbose -Message $message } ElseIf ($LogPath -and (-NOT $EventLogSource)) { Out-PsLogging -LogPath $LogPath -MessageType Verbose -Message $message } Else { Out-PsLogging -ScreenOnly -MessageType Verbose -Message $message } }
-
     #region Setup
-    $message = ("{0}: Operating in the {1} parameterset." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $PsCmdlet.ParameterSetName)
-    If ($PSBoundParameters['Verbose'] -or $VerbosePreference -eq 'Continue') { If ($EventLogSource -and (-NOT $LogPath)) { Out-PsLogging -EventLogSource $EventLogSource -MessageType Verbose -Message $message } ElseIf ($LogPath -and (-NOT $EventLogSource)) { Out-PsLogging -LogPath $LogPath -MessageType Verbose -Message $message } Else { Out-PsLogging -ScreenOnly -MessageType Verbose -Message $message } }
-
-    # Initialize variables.
-    $flexibleAssetTypesCollection = [System.Collections.Generic.List[PSObject]]::New()
+    #region Initialize variables
+    $flexibleAssetTypeCollection = [System.Collections.Generic.List[PSObject]]::New()
     $stopLoop = $false
     $loopCount = 1
     $429Count = 0
+    #endregion Initialize variables
 
-    # Setup parameters for calling Get-ItGlueJsonWebToken.
+    #region Logging splatting
     If ($PSBoundParameters['Verbose'] -or $VerbosePreference -eq 'Continue') {
         If ($EventLogSource -and (-NOT $LogPath)) {
-            $commandParams = @{
+            $loggingParams = @{
                 Verbose        = $true
                 EventLogSource = $EventLogSource
             }
-        }
-        ElseIf ($LogPath -and (-NOT $EventLogSource)) {
-            $commandParams = @{
+        } ElseIf ($LogPath -and (-NOT $EventLogSource)) {
+            $loggingParams = @{
                 Verbose = $true
                 LogPath = $LogPath
             }
-        }
-        Else {
-            $commandParams = @{
+        } Else {
+            $loggingParams = @{
                 Verbose = $true
             }
         }
-    }
-    Else {
+    } Else {
         If ($EventLogSource -and (-NOT $LogPath)) {
-            $commandParams = @{
-                Verbose = $false
+            $loggingParams = @{
                 EventLogSource = $EventLogSource
             }
-        }
-        ElseIf ($LogPath -and (-NOT $EventLogSource)) {
-            $commandParams = @{
-                Verbose = $false
+        } ElseIf ($LogPath -and (-NOT $EventLogSource)) {
+            $loggingParams = @{
                 LogPath = $LogPath
             }
-        }
-        Else {
-            $commandParams = @{
-                Verbose = $false
-            }
+        } Else {
+            $loggingParams = @{}
         }
     }
+    #endregion Logging splatting
 
+    $message = ("{0}: Beginning {1}." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $MyInvocation.MyCommand)
+    Out-PsLogging @loggingParams -MessageType First -Message $message
+
+    $message = ("{0}: Operating in the {1} parameterset." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $PsCmdlet.ParameterSetName)
+    If ($PSBoundParameters['Verbose'] -or $VerbosePreference -eq 'Continue') { If ($EventLogSource -and (-NOT $LogPath)) { Out-PsLogging -EventLogSource $EventLogSource -MessageType Verbose -Message $message } ElseIf ($LogPath -and (-NOT $EventLogSource)) { Out-PsLogging -LogPath $LogPath -MessageType Verbose -Message $message } Else { Out-PsLogging -ScreenOnly -MessageType Verbose -Message $message } }
+
+    #region Auth
     Switch ($PsCmdlet.ParameterSetName) {
         'ApiKey' {
             $message = ("{0}: Setting header with API key." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"))
@@ -132,6 +129,7 @@ Function Get-ItGlueFlexibleAssetField {
             $header = @{ 'cache-control' = 'no-cache'; 'content-type' = 'application/vnd.api+json'; 'authorization' = "Bearer $(($accessToken.Content | ConvertFrom-Json).token)" }
         }
     }
+    #endregion Auth
     #endregion Setup
 
     #region Main
@@ -290,7 +288,7 @@ Function Get-ItGlueFlexibleAssetField {
                 "page[number]"                   = $page
             }
 
-            $message = ("{0}: Retrieved {1} of {2} instances." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $flexibleAssetTypesCollection.Count, $($instanceTotalCount.meta.'total-count'))
+            $message = ("{0}: Retrieved {1} of {2} instances." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $flexibleAssetTypeCollection.Count, $($instanceTotalCount.meta.'total-count'))
             If ($PSBoundParameters['Verbose'] -or $VerbosePreference -eq 'Continue') { If ($EventLogSource -and (-NOT $LogPath)) { Out-PsLogging -EventLogSource $EventLogSource -MessageType Verbose -Message $message } ElseIf ($LogPath -and (-NOT $EventLogSource)) { Out-PsLogging -LogPath $LogPath -MessageType Verbose -Message $message } Else { Out-PsLogging -ScreenOnly -MessageType Verbose -Message $message } }
 
             Do {
@@ -298,7 +296,18 @@ Function Get-ItGlueFlexibleAssetField {
                     $message = ("{0}: Sending the following:`r`nBody: {1}`r`nUrl: {2}" -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), ($queryBody | Out-String), "$UriBase/flexible_assets")
                     If ($PSBoundParameters['Verbose'] -or $VerbosePreference -eq 'Continue') { If ($EventLogSource -and (-NOT $LogPath)) { Out-PsLogging -EventLogSource $EventLogSource -MessageType Verbose -Message $message } ElseIf ($LogPath -and (-NOT $EventLogSource)) { Out-PsLogging -LogPath $LogPath -MessageType Verbose -Message $message } Else { Out-PsLogging -ScreenOnly -MessageType Verbose -Message $message } }
 
-                    (Invoke-RestMethod -Method GET -Headers $header -Uri "$UriBase/flexible_asset_types" -Body $queryBody -ErrorAction Stop) | ForEach-Object { $flexibleAssetTypesCollection.Add($_) }
+                    $response = Invoke-RestMethod -Method GET -Headers $header -Uri "$UriBase/flexible_asset_types" -Body $queryBody -ErrorAction Stop
+
+                    If ($response.data.id.Count -gt 0) {
+                        Foreach ($item in $response.data) {
+                            $flexibleAssetTypeCollection.Add($item)
+                        }
+                    } Else {
+                        $message = ("{0}: No flexible asset types received from the API query." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $loopCount)
+                        If ($EventLogSource -and (-NOT $LogPath)) { Out-PsLogging -EventLogSource $EventLogSource -MessageType Warning -Message $message } ElseIf ($LogPath -and (-NOT $EventLogSource)) { Out-PsLogging -LogPath $LogPath -MessageType Warning -Message $message } Else { Out-PsLogging -ScreenOnly -MessageType Warning -Message $message }
+
+                        Return "Error"
+                    }
 
                     $stopLoop = $True
                 } Catch {
@@ -332,13 +341,13 @@ Function Get-ItGlueFlexibleAssetField {
                                     If ($EventLogSource -and (-NOT $LogPath)) { Out-PsLogging -EventLogSource $EventLogSource -MessageType Error -Message $message -BlockStdErr $BlockStdErr } ElseIf ($LogPath -and (-NOT $EventLogSource)) { Out-PsLogging -LogPath $LogPath -MessageType Error -Message $message -BlockStdErr $BlockStdErr } Else { Out-PsLogging -ScreenOnly -MessageType Error -Message $message -BlockStdErr $BlockStdErr }
 
                                     # Sometimes, the function returns instance values and the string, "error". Doing this should prevent that.
-                                    $flexibleAssetTypesCollection = "Error"
+                                    $flexibleAssetTypeCollection = "Error"
 
                                     Return "Error"
                                 } Else {
                                     $loopCount = 1
                                     $PageSize = $PageSize / 2
-                                    $page = [math]::Round(($flexibleAssetTypesCollection.count / $PageSize) + 1)
+                                    $page = [math]::Round(($flexibleAssetTypeCollection.count / $PageSize) + 1)
                                     $queryBody = @{
                                         "page[size]"                     = $PageSize
                                         "page[number]"                   = $page
@@ -359,10 +368,9 @@ Function Get-ItGlueFlexibleAssetField {
             While ($stopLoop -eq $false)
 
             $page++
-        }
-        While ($flexibleAssetTypesCollection.Count -lt $instanceTotalCount.meta.'total-count')
+        } While ($flexibleAssetTypeCollection.Count -lt $instanceTotalCount.meta.'total-count')
 
-        $allData = Foreach ($type in $flexibleAssetTypeCollection.data) {
+        $allData = Foreach ($type in $flexibleAssetTypeCollection) {
             $stopLoop = $False
             Try {
                 $message = ("{0}: Getting fields for {1}" -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $type.attributes.name)
@@ -371,6 +379,7 @@ Function Get-ItGlueFlexibleAssetField {
                 $fields = (Invoke-RestMethod -Method GET -Headers $header -Uri "$UriBase/flexible_asset_types/$($type.id)/relationships/flexible_asset_fields" -ErrorAction Stop).data.attributes
 
                 [PSCustomObject]@{
+                    id              = $type.id
                     typeName        = $type.attributes.name
                     typeDescription = $type.attributes.description
                     typeCreatedAt   = $type.attributes.'created-at'
@@ -426,4 +435,4 @@ Function Get-ItGlueFlexibleAssetField {
         }
     }
     #endregion Main
-} #1.0.0.0
+} #2023.03.30.0

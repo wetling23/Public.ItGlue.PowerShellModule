@@ -32,7 +32,7 @@ Function Get-ItGlueDocumentFolder {
             PS C:\> Get-ItGlueDocumentFolder -AccessToken (Get-ItGlueJsonWebToken -SamlAssertion <IdP SAML assertion string> -UriBase https://company.itglue.com) -OrganizationId 123 -Id 456 -Verbose -LogPath C:\Temp\log.txt
 
             In this example, the cmdlet will use the generated access token key to get the ITGlue document folder with ID 456 from the orgianization with ID 123. Verbose logging output is written to the host and C:\Temp\log.txt.
-        #>
+    #>
     [CmdletBinding(DefaultParameterSetName = 'OrgFilterOnly')]
     param (
         [Parameter(Mandatory)]

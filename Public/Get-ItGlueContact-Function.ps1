@@ -97,34 +97,37 @@ pecific names
     $stopLoop = $false
     $loopCount = 1
 
-    # Setup parameters for calling Get-ItGlueJsonWebToken.
+    #region Logging splatting
     If ($PSBoundParameters['Verbose'] -or $VerbosePreference -eq 'Continue') {
         If ($EventLogSource -and (-NOT $LogPath)) {
-            $commandParams = @{
+            $loggingParams = @{
                 Verbose        = $true
                 EventLogSource = $EventLogSource
             }
         } ElseIf ($LogPath -and (-NOT $EventLogSource)) {
-            $commandParams = @{
+            $loggingParams = @{
                 Verbose = $true
                 LogPath = $LogPath
             }
         } Else {
-            $commandParams = @{
+            $loggingParams = @{
                 Verbose = $true
             }
         }
     } Else {
         If ($EventLogSource -and (-NOT $LogPath)) {
-            $commandParams = @{
+            $loggingParams = @{
                 EventLogSource = $EventLogSource
             }
         } ElseIf ($LogPath -and (-NOT $EventLogSource)) {
-            $commandParams = @{
+            $loggingParams = @{
                 LogPath = $LogPath
             }
+        } Else {
+            $loggingParams = @{}
         }
     }
+    #endregion Logging splatting
 
     If ($ApiKey) {
         $message = ("{0}: Setting header with API key." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"))

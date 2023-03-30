@@ -90,40 +90,37 @@ Function Get-ItGlueLocation {
     $loopCount = 1
     $429Count = 0
 
-    # Setup parameters for calling Get-ItGlueJsonWebToken.
+    #region Logging splatting
     If ($PSBoundParameters['Verbose'] -or $VerbosePreference -eq 'Continue') {
         If ($EventLogSource -and (-NOT $LogPath)) {
-            $commandParams = @{
+            $loggingParams = @{
                 Verbose        = $true
                 EventLogSource = $EventLogSource
             }
-        }
-        ElseIf ($LogPath -and (-NOT $EventLogSource)) {
-            $commandParams = @{
+        } ElseIf ($LogPath -and (-NOT $EventLogSource)) {
+            $loggingParams = @{
                 Verbose = $true
                 LogPath = $LogPath
             }
-        }
-        Else {
-            $commandParams = @{
+        } Else {
+            $loggingParams = @{
                 Verbose = $true
             }
         }
-    }
-    Else {
+    } Else {
         If ($EventLogSource -and (-NOT $LogPath)) {
-            $commandParams = @{
-                Verbose        = $false
+            $loggingParams = @{
                 EventLogSource = $EventLogSource
             }
-        }
-        ElseIf ($LogPath -and (-NOT $EventLogSource)) {
-            $commandParams = @{
-                Verbose = $false
+        } ElseIf ($LogPath -and (-NOT $EventLogSource)) {
+            $loggingParams = @{
                 LogPath = $LogPath
             }
+        } Else {
+            $loggingParams = @{}
         }
     }
+    #endregion Logging splatting
 
     Switch ($PsCmdlet.ParameterSetName) {
         'ApiKey' {

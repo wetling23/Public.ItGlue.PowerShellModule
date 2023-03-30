@@ -90,7 +90,7 @@ Function Get-ItGlueGroup {
     }
     #endregion Initialize variables
 
-    # Setup parameters for calling Get-ItGlueJsonWebToken.
+    #region Logging splatting
     If ($PSBoundParameters['Verbose'] -or $VerbosePreference -eq 'Continue') {
         If ($EventLogSource -and (-NOT $LogPath)) {
             $loggingParams = @{
@@ -116,8 +116,11 @@ Function Get-ItGlueGroup {
             $loggingParams = @{
                 LogPath = $LogPath
             }
+        } Else {
+            $loggingParams = @{}
         }
     }
+    #endregion Logging splatting
 
     #region Creds
     If ($ApiKey) {
