@@ -167,7 +167,7 @@ Function Get-ItGlueDocumentFolder {
     }
 
     If ($PsCmdlet.ParameterSetName -eq "IdFilter") {
-        $commandParams.Uri = $commandParams.Uri -replace '\?.*', "`?$Id"
+        $commandParams.Uri = $commandParams.Uri -replace '\?.*', "`/$Id"
     }
 
     $message = ("{0}: Connecting to {1}." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $commandParams.Uri)
