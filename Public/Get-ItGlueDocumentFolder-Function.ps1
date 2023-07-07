@@ -8,6 +8,7 @@ Function Get-ItGlueDocumentFolder {
             V2022.08.29.0
             V2022.09.09.0
             V2023.01.06.0
+            V2023.06.30.0
         .LINK
             https://github.com/wetling23/Public.ItGlue.PowerShellModule
         .PARAMETER OrganizationId
@@ -66,6 +67,10 @@ Function Get-ItGlueDocumentFolder {
     $stopLoop = $false
     $loopCount = 1
     $UriBase = $UriBase.TrimEnd('/')
+    $folders = [System.Collections.Generic.List[PSObject]]::New()
+    $page = 1
+
+    If ($Id) { $PageSize = 1 }
     #endregion Initialize variables
 
     #region Logging splatting
@@ -153,22 +158,23 @@ Function Get-ItGlueDocumentFolder {
     #endregion Setup
 
     #region Get folders
-    $message = ("{0}: Attempting to get folder(s) for org: {1}." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $OrganizationId)
-    If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
-
     $commandParams = @{
         Method          = 'GET'
         UseBasicParsing = $true
         Headers         = $header
         ErrorAction     = 'Stop'
-        Uri             = "$UriBase/api/organizations/$OrganizationId/relationships/document_folders/"
+        Uri             = "$UriBase/api/organizations/$OrganizationId/relationships/document_folders?page[size]=$PageSize&page[number]=$page"
     }
 
     If ($PsCmdlet.ParameterSetName -eq "IdFilter") {
-        $commandParams.Uri += "$Id"
+        $commandParams.Uri = $commandParams.Uri -replace '\?.*', "`?$Id"
     }
 
+    $message = ("{0}: Connecting to {1}." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $commandParams.Uri)
+    If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
+
     Do {
+        $response = $null
         Try {
             $response = Invoke-RestMethod @commandParams
 
@@ -192,13 +198,32 @@ Function Get-ItGlueDocumentFolder {
                 Return "Error"
             }
         }
+
+        If ($response.data.id.Count -ge 1) {
+            Foreach ($folder in $response.data) {
+                $folders.Add($folder)
+            }
+        }
+
+        Switch ($PsCmdlet.ParameterSetName) {
+            'OrgFilterOnly' {
+                If ($response -and ($response.meta.'total-count') -ne $folders.id.Count) {
+                    $page++
+                    $stopLoop = $false
+                    $commandParams.Uri = "$UriBase/api/organizations/$OrganizationId/relationships/document_folders?page[size]=$PageSize&page[number]=$page"
+                }
+            }
+            'IdFilter' {
+                $stopLoop = $true
+            }
+        }
     } While ($stopLoop -eq $false)
     #endregion Get folder
 
     If ($response.data.id.Count -ge 1) {
-        $message = ("{0}: Returning {1} document folders." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $response.data.id.Count)
+        $message = ("{0}: Returning {1} document folders." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $folders.id.Count)
         If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
 
-        Return $response.data
+        Return $folders
     }
-} #2023.01.06.0
+} #2023.07.07.0

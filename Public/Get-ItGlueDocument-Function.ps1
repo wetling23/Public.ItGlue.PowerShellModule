@@ -1,19 +1,23 @@
-Function Get-ItGlueDocumentFolder {
+Function Get-ItGlueDocument {
     <#
         .DESCRIPTION
-            Accept an ITGlue org ID and (optionally) a folder ID and return the properties. Requires an access token, API key authentication is not supported.
+            Accept an ITGlue org ID and a document ID and return the properties/content/attachments. Requires an access token, API key authentication is not supported.
         .NOTES
-            V2022.03.02.0
+            V2022.03.30.0
                 - Initial release.
-            V2022.08.29.0
-            V2022.09.09.0
-            V2023.01.06.0
+            V2023.07.07.0
         .LINK
             https://github.com/wetling23/Public.ItGlue.PowerShellModule
         .PARAMETER OrganizationId
             Represents the desired customer's ITGlue organization ID.
         .PARAMETER Id
-            Represents the ID of the desired folder.
+            Represents the ID of the desired document.
+        .PARAMETER IncludeAttachment
+            When included, any attachments to the desired document will be downloaded.
+        .PARAMETER OutputDirectory
+            Path to which the cmdlet will download attached files, when -IncludeAttachment is specified.
+        .PARAMETER Tenant
+            ITGlue tenant name (aka company or portal). Required to build the download URL when -IncludeAttachment is specified.
         .PARAMETER UserCred
             ITGlue credential object for the desired local account. Will be used to generate an access token.
         .PARAMETER AccessToken
@@ -29,18 +33,40 @@ Function Get-ItGlueDocumentFolder {
         .PARAMETER LogPath
             When included (when EventLogSource is null), represents the file, to which the cmdlet will output will be logged. If no path or event log source are provided, output is sent only to the host.
         .EXAMPLE
-            PS C:\> Get-ItGlueDocumentFolder -AccessToken (Get-ItGlueJsonWebToken -SamlAssertion <IdP SAML assertion string> -UriBase https://company.itglue.com) -OrganizationId 123 -Id 456 -Verbose -LogPath C:\Temp\log.txt
+            PS C:\> Get-ItGlueDocument -AccessToken (Get-ItGlueJsonWebToken -SamlAssertion <IdP SAML assertion string> -UriBase https://company.itglue.com) -OrganizationId 123 -Id 456 -Verbose -LogPath C:\Temp\log.txt
 
-            In this example, the cmdlet will use the generated access token key to get the ITGlue document folder with ID 456 from the orgianization with ID 123. Verbose logging output is written to the host and C:\Temp\log.txt.
+            In this example, the cmdlet will use the generated access token key to get the ITGlue document with ID 456 from the orgianization with ID 123. Verbose logging output is written to the host and C:\Temp\log.txt.
+        .EXAMPLE
+            PS C:\> Get-ItGlueDocument -AccessToken (Get-ItGlueJsonWebToken -SamlAssertion <IdP SAML assertion string> -UriBase https://company.itglue.com) -OrganizationId 123 -Id 456 -IncludeAttachment -OutputDirectory C:\Temp -Tenant acme
+
+            In this example, the cmdlet will use the generated access token key to get the ITGlue document with ID 456 from the orgianization with ID 123. Any files attached to document 123 will be downloaded to C:\Temp (through https://acme.itglue.com). Limited logging output is written only to the host.
     #>
-    [CmdletBinding(DefaultParameterSetName = 'OrgFilterOnly')]
+    [CmdletBinding(DefaultParameterSetName = 'NoAttachment')]
     param (
         [Parameter(Mandatory)]
         [Int]$OrganizationId,
 
-        [Parameter(Mandatory, ParameterSetName = 'IdFilter')]
-        [Alias("FolderId")]
+        [Parameter(Mandatory)]
+        [Alias("DocumentId")]
         [Int]$Id,
+
+        [Parameter(Mandatory, ParameterSetName = 'IncludeAttachments')]
+        [Switch]$IncludeAttachment,
+
+        [Parameter(Mandatory, ParameterSetName = 'IncludeAttachments')]
+        [ValidateScript({
+                If (-NOT ($_ | Test-Path) ) {
+                    Throw "File or folder does not exist."
+                }
+                If (($_ | Test-Path -PathType Leaf) ) {
+                    Throw "The Path argument must be a folder. File paths are not allowed."
+                }
+                Return $true
+            })]
+        [System.IO.FileInfo]$OutputDirectory,
+
+        [Parameter(Mandatory, ParameterSetName = 'IncludeAttachments')]
+        [String]$Tenant,
 
         [Alias("ItGlueUserCred")]
         [System.Management.Automation.PSCredential]$UserCred,
@@ -152,8 +178,8 @@ Function Get-ItGlueDocumentFolder {
     #endregion Auth
     #endregion Setup
 
-    #region Get folders
-    $message = ("{0}: Attempting to get folder(s) for org: {1}." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $OrganizationId)
+    #region Get documents
+    $message = ("{0}: Attempting to get document {1} for org {2}." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $Id, $OrganizationId)
     If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
 
     $commandParams = @{
@@ -161,11 +187,7 @@ Function Get-ItGlueDocumentFolder {
         UseBasicParsing = $true
         Headers         = $header
         ErrorAction     = 'Stop'
-        Uri             = "$UriBase/api/organizations/$OrganizationId/relationships/document_folders/"
-    }
-
-    If ($PsCmdlet.ParameterSetName -eq "IdFilter") {
-        $commandParams.Uri += "$Id"
+        Uri             = "https://synoptek.itglue.com/$OrganizationId/docs/$Id.json"
     }
 
     Do {
@@ -192,13 +214,35 @@ Function Get-ItGlueDocumentFolder {
                 Return "Error"
             }
         }
-    } While ($stopLoop -eq $false)
-    #endregion Get folder
 
-    If ($response.data.id.Count -ge 1) {
-        $message = ("{0}: Returning {1} document folders." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $response.data.id.Count)
+        If (($response.attachments) -and ($IncludeAttachment)) {
+            $message = ("{0}: Preparing to download {1} attachments." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $response.attachments.id.Count)
+            If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
+
+            $cli = New-Object System.Net.WebClient
+
+            Foreach ($item in $header.GetEnumerator()) {
+                $cli.Headers[$item.name] = $item.value
+            }
+
+            Foreach ($file in $response.attachments) {
+                Try {
+                    $cli.DownloadFile(("https://{0}.itglue.com{1}" -f $Tenant, $file.url), ('{0}{1}{2}' -f $OutputDirectory.FullName, $(If ($OutputDirectory.FullName -notmatch '\\$') { '\' }), $file.name))
+                } Catch {
+                    $message = ("{0}: Unexpected error downloading attachment ({1}). To prevent errors, {2} will exit. Error: {3}" -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $file.name, $MyInvocation.MyCommand, $_.Exception.Message)
+                    Out-PsLogging @loggingParams -MessageType Error -Message $message
+
+                    Return "Error"
+                }
+            }
+        }
+    } While ($stopLoop -eq $false)
+    #endregion Get documents
+
+    If ($response.id.Count -ge 1) {
+        $message = ("{0}: Returning document properties." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $response.data.id.Count)
         If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
 
-        Return $response.data
+        Return $response
     }
-} #2023.01.06.0
+} #2023.07.07.0

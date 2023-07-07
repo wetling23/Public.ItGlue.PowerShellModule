@@ -20,6 +20,7 @@ Function Get-ItGlueJsonWebToken {
             V2022.08.28.0
             V2022.08.29.0
             V2022.08.29.1
+            V2023.03.30.0
         .PARAMETER Credential
             ITGlue credential object for the desired local account.
         .PARAMETER SamlAssertion
@@ -129,7 +130,8 @@ Function Get-ItGlueJsonWebToken {
     $message = ("{0}: Attempting to initiate a web session." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"))
     If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
 
-    $response = Invoke-WebRequest -Method $httpVerb -UseBasicParsing -Uri $url -Headers $headers -Body $base -MaximumRedirection 0 -SessionVariable 'session' -ErrorAction SilentlyContinue
+    # Per Kaseya support (a software dev), the MaximumRedirection parameter can be 1. It has also worked as 0.
+    $response = Invoke-WebRequest -Method $httpVerb -UseBasicParsing -Uri $url -Headers $headers -Body $base -MaximumRedirection 1 -SessionVariable 'session' -ErrorAction SilentlyContinue
 
     If (($response.StatusCode -eq 302) -and ($response)) {
         $message = ("{0}: Web session initiated." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"))
@@ -196,4 +198,4 @@ Function Get-ItGlueJsonWebToken {
     #region Generate access token
 
     Return $accessToken
-} #2022.08.29.1
+} #2023.03.30.0
