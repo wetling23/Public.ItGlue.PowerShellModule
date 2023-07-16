@@ -6,6 +6,7 @@ Function Get-ItGlueDocument {
             V2022.03.30.0
                 - Initial release.
             V2023.07.07.0
+            V2023.07.16.0
         .LINK
             https://github.com/wetling23/Public.ItGlue.PowerShellModule
         .PARAMETER OrganizationId
@@ -187,7 +188,7 @@ Function Get-ItGlueDocument {
         UseBasicParsing = $true
         Headers         = $header
         ErrorAction     = 'Stop'
-        Uri             = "https://synoptek.itglue.com/$OrganizationId/docs/$Id.json"
+        Uri             = "https://$Tenant.itglue.com/$OrganizationId/docs/$Id.json"
     }
 
     Do {
@@ -203,8 +204,25 @@ Function Get-ItGlueDocument {
                 Start-Sleep -Seconds 60
 
                 $loopCount++
+            } ElseIf ($.Exception.Message -match 'Internal Server Error') {
+                Try {
+                    $commandParams.Uri = "$UriBase/api/organizations/$OrganizationId/relationships/documents/$Id`?include=attachments"
+
+                    $response = Invoke-RestMethod @commandParams
+
+                    $stopLoop = $true
+                } Catch {
+                    $message = ("{0}: Unexpected error getting document. To prevent errors, {1} will exit. Error details, if present:`r`n`t
+    Error title: {2}`r`n`t
+    Error detail is: {3}`r`t`n
+    PowerShell returned: {4}" -f `
+                        ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $MyInvocation.MyCommand, ($_.ErrorDetails.message | ConvertFrom-Json).errors.title, (($_.ErrorDetails.message | ConvertFrom-Json -ErrorAction SilentlyContinue | Select-Object -ExpandProperty errors).detail), $_.Exception.Message)
+                    Out-PsLogging @loggingParams -MessageType Error -Message $message
+
+                    Return "Error"
+                }
             } Else {
-                $message = ("{0}: Unexpected error getting instances. To prevent errors, {1} will exit. Error details, if present:`r`n`t
+                $message = ("{0}: Unexpected error getting document. To prevent errors, {1} will exit. Error details, if present:`r`n`t
     Error title: {2}`r`n`t
     Error detail is: {3}`r`t`n
     PowerShell returned: {4}" -f `
@@ -235,6 +253,21 @@ Function Get-ItGlueDocument {
                     Return "Error"
                 }
             }
+        } ElseIf (($response.included) -and ($IncludeAttachment)) {
+            $cli = New-Object System.Net.WebClient
+
+            Foreach ($item in $header.GetEnumerator()) {
+                $cli.Headers[$item.name] = $item.value
+            }
+
+            Try {
+                $cli.DownloadFile(("{0}" -f $response.included.attributes.'download-url'), ('{0}{1}{2}' -f $OutputDirectory.FullName, $(If ($OutputDirectory.FullName -notmatch '\\$') { '\' }), $response.included.attributes.'attachment-file-name'))
+            } Catch {
+                $message = ("{0}: Unexpected error downloading attachment ({1}). To prevent errors, {2} will exit. Error: {3}" -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $response.included.attributes.'attachment-file-name', $MyInvocation.MyCommand, $_.Exception.Message)
+                Out-PsLogging @loggingParams -MessageType Error -Message $message
+
+                Return "Error"
+            }
         }
     } While ($stopLoop -eq $false)
     #endregion Get documents
@@ -244,5 +277,10 @@ Function Get-ItGlueDocument {
         If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
 
         Return $response
+    } ElseIf ($response.data.id.Count -eq 1) {
+        $message = ("{0}: Returning document properties." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $response.data.id.Count)
+        If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
+
+        Return $response.data.attributes
     }
-} #2023.07.07.0
+} #2023.07.16.0
