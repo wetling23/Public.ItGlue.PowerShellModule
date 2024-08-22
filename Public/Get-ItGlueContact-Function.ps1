@@ -7,6 +7,7 @@ Function Get-ItGlueContact {
             V1.0.0.1 date: 12 July 2022
             V1.0.0.2 date: 22 July 2022
             V2023.02.09.0
+            V2024.08.15.0
         .LINK
             https://github.com/wetling23/Public.ItGlue.PowerShellModule
         .PARAMETER ContactId
@@ -342,7 +343,7 @@ pecific names
 
             If ($response.data.id) {
                 $message = ("{0}: Successfully retrieved contact properties, returning the contact." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"))
-                If ($EventLogSource -and (-NOT $LogPath)) { Out-PsLogging -EventLogSource $EventLogSource -MessageType Error -Message $message -BlockStdErr $BlockStdErr } ElseIf ($LogPath -and (-NOT $EventLogSource)) { Out-PsLogging -LogPath $LogPath -MessageType Error -Message $message -BlockStdErr $BlockStdErr } Else { Out-PsLogging -ScreenOnly -MessageType Error -Message $message -BlockStdErr $BlockStdErr }
+                If ($EventLogSource -and (-NOT $LogPath)) { Out-PsLogging -EventLogSource $EventLogSource -MessageType Verbose -Message $message -BlockStdErr $BlockStdErr } ElseIf ($LogPath -and (-NOT $EventLogSource)) { Out-PsLogging -LogPath $LogPath -MessageType Verbose -Message $message -BlockStdErr $BlockStdErr } Else { Out-PsLogging -ScreenOnly -MessageType Verbose -Message $message -BlockStdErr $BlockStdErr }
 
                 Return $response.data
             }
@@ -355,4 +356,4 @@ pecific names
         }
     }
     #endregion Main
-} #2023.02.09.0
+} #2024.08.15.0

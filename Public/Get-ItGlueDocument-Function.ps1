@@ -7,6 +7,7 @@ Function Get-ItGlueDocument {
                 - Initial release.
             V2023.07.07.0
             V2023.07.16.0
+            V2024.05.10.0
         .LINK
             https://github.com/wetling23/Public.ItGlue.PowerShellModule
         .PARAMETER OrganizationId
@@ -66,7 +67,7 @@ Function Get-ItGlueDocument {
             })]
         [System.IO.FileInfo]$OutputDirectory,
 
-        [Parameter(Mandatory, ParameterSetName = 'IncludeAttachments')]
+        [Parameter(Mandatory)]
         [String]$Tenant,
 
         [Alias("ItGlueUserCred")]
@@ -127,16 +128,13 @@ Function Get-ItGlueDocument {
     }
     #endregion Logging splatting
 
-    $message = ("{0}: Beginning {1}." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $MyInvocation.MyCommand)
-    Out-PsLogging @loggingParams -MessageType Info -Message $message
+    $message = ("{0}: Beginning {1}." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $MyInvocation.MyCommand); Out-PsLogging @loggingParams -MessageType Info -Message $message
 
-    $message = ("{0}: Operating in the {1} parameterset." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $PsCmdlet.ParameterSetName)
-    If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
+    $message = ("{0}: Operating in the {1} parameterset." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $PsCmdlet.ParameterSetName); If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
 
     #region Auth
     If ($UserCred -and $AccessToken) {
-        $message = ("{0}: Both a credential and access token were provided. Ignoring the credential." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"))
-        If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
+        $message = ("{0}: Both a credential and access token were provided. Ignoring the credential." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss")); If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
 
         $header = @{
             "Authorization" = "Bearer $([System.Runtime.InteropServices.Marshal]::PtrToStringAuto([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($AccessToken)))"
@@ -145,8 +143,7 @@ Function Get-ItGlueDocument {
         }
     } ElseIf (-NOT($UserCred) -and $AccessToken) {
         # This /could/ be combined with the option above, but I wanted different messages.
-        $message = ("{0}: Using the provided access token." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"))
-        If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
+        $message = ("{0}: Using the provided access token." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss")); If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
 
         $header = @{
             "Authorization" = "Bearer $([System.Runtime.InteropServices.Marshal]::PtrToStringAuto([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($AccessToken)))"
@@ -154,25 +151,21 @@ Function Get-ItGlueDocument {
             'Accept'        = 'application/json, text/plain'
         }
     } ElseIf ($UserCred -and -NOT($AccessToken)) {
-        $message = ("{0}: Attempting to generate an access token, using the provided credential." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"))
-        If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
+        $message = ("{0}: Attempting to generate an access token, using the provided credential." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss")); If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
 
-        $message = ("{0}: Setting header with user-access token." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"))
-        If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
+        $message = ("{0}: Setting header with user-access token." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss")); If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
 
         $accessToken = Get-ItGlueJsonWebToken -Credential $UserCred -UriBase $UriBase @loggingParams
 
         If ($AccessToken) {
             $header = @{ 'content-type' = 'application/vnd.api+json'; 'accept' = 'application/json, text/plain'; 'authorization' = "Bearer $accessToken" }
         } Else {
-            $message = ("{0}: Unable to generate an access token." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"))
-            Out-PsLogging @loggingParams -MessageType Error -Message $message
+            $message = ("{0}: Unable to generate an access token." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss")); Out-PsLogging @loggingParams -MessageType Error -Message $message
 
             Return "Error"
         }
     } Else {
-        $message = ("{0}: No authentication mechanisms provided. Re-run the command with either an access token or a user credential, authorized to create an access token." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"))
-        If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
+        $message = ("{0}: No authentication mechanisms provided. Re-run the command with either an access token or a user credential, authorized to create an access token." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss")); If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
 
         Return "Error"
     }
@@ -180,8 +173,7 @@ Function Get-ItGlueDocument {
     #endregion Setup
 
     #region Get documents
-    $message = ("{0}: Attempting to get document {1} for org {2}." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $Id, $OrganizationId)
-    If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
+    $message = ("{0}: Attempting to get document {1} for org {2}." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $Id, $OrganizationId); If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
 
     $commandParams = @{
         Method          = 'GET'
@@ -198,13 +190,12 @@ Function Get-ItGlueDocument {
             $stopLoop = $true
         } Catch {
             If (($_.Exception.Message -match 429) -and ($loopCount -lt 6)) {
-                $message = ("{0}: Rate limit reached. Sleeping for 60 seconds before trying again. This is loop {1} of five." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $loopCount)
-                If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
+                $message = ("{0}: Rate limit reached. Sleeping for 60 seconds before trying again. This is loop {1} of five." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $loopCount); If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
 
                 Start-Sleep -Seconds 60
 
                 $loopCount++
-            } ElseIf ($.Exception.Message -match 'Internal Server Error') {
+            } ElseIf ($_.Exception.Message -match 'Internal Server Error') {
                 Try {
                     $commandParams.Uri = "$UriBase/api/organizations/$OrganizationId/relationships/documents/$Id`?include=attachments"
 
@@ -234,8 +225,7 @@ Function Get-ItGlueDocument {
         }
 
         If (($response.attachments) -and ($IncludeAttachment)) {
-            $message = ("{0}: Preparing to download {1} attachments." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $response.attachments.id.Count)
-            If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
+            $message = ("{0}: Preparing to download {1} attachments." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $response.attachments.id.Count); If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
 
             $cli = New-Object System.Net.WebClient
 
@@ -247,8 +237,7 @@ Function Get-ItGlueDocument {
                 Try {
                     $cli.DownloadFile(("https://{0}.itglue.com{1}" -f $Tenant, $file.url), ('{0}{1}{2}' -f $OutputDirectory.FullName, $(If ($OutputDirectory.FullName -notmatch '\\$') { '\' }), $file.name))
                 } Catch {
-                    $message = ("{0}: Unexpected error downloading attachment ({1}). To prevent errors, {2} will exit. Error: {3}" -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $file.name, $MyInvocation.MyCommand, $_.Exception.Message)
-                    Out-PsLogging @loggingParams -MessageType Error -Message $message
+                    $message = ("{0}: Unexpected error downloading attachment ({1}). To prevent errors, {2} will exit. Error: {3}" -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $file.name, $MyInvocation.MyCommand, $_.Exception.Message); Out-PsLogging @loggingParams -MessageType Error -Message $message
 
                     Return "Error"
                 }
@@ -263,8 +252,7 @@ Function Get-ItGlueDocument {
             Try {
                 $cli.DownloadFile(("{0}" -f $response.included.attributes.'download-url'), ('{0}{1}{2}' -f $OutputDirectory.FullName, $(If ($OutputDirectory.FullName -notmatch '\\$') { '\' }), $response.included.attributes.'attachment-file-name'))
             } Catch {
-                $message = ("{0}: Unexpected error downloading attachment ({1}). To prevent errors, {2} will exit. Error: {3}" -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $response.included.attributes.'attachment-file-name', $MyInvocation.MyCommand, $_.Exception.Message)
-                Out-PsLogging @loggingParams -MessageType Error -Message $message
+                $message = ("{0}: Unexpected error downloading attachment ({1}). To prevent errors, {2} will exit. Error: {3}" -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $response.included.attributes.'attachment-file-name', $MyInvocation.MyCommand, $_.Exception.Message); Out-PsLogging @loggingParams -MessageType Error -Message $message
 
                 Return "Error"
             }
@@ -273,14 +261,12 @@ Function Get-ItGlueDocument {
     #endregion Get documents
 
     If ($response.id.Count -ge 1) {
-        $message = ("{0}: Returning document properties." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $response.data.id.Count)
-        If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
+        $message = ("{0}: Returning document properties." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $response.data.id.Count); If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
 
         Return $response
     } ElseIf ($response.data.id.Count -eq 1) {
-        $message = ("{0}: Returning document properties." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $response.data.id.Count)
-        If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
+        $message = ("{0}: Returning document properties." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $response.data.id.Count); If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
 
         Return $response.data.attributes
     }
-} #2023.07.16.0
+} #2024.05.10.0
