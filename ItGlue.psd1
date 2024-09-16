@@ -4,7 +4,7 @@
     RootModule        = 'ItGlue.psm1'
 
     # Version number of this module.
-    ModuleVersion     = '2024.08.22.0'
+    ModuleVersion     = '2024.09.16.0'
 
     # ID used to uniquely identify this module
     GUID              = '92785682-4c93-4ef3-87aa-bf70c232aa52'
@@ -16,7 +16,7 @@
     CompanyName       = ''
 
     # Copyright statement for this module
-    Copyright         = '(c) 2023 mhashemi. All rights reserved.'
+    Copyright         = '(c) 2024 mhashemi. All rights reserved.'
 
     # Description of the functionality provided by this module
     Description       = 'ITGlue REST API-related functions.'
@@ -64,7 +64,8 @@
     'Get-ItGlueManufacturer', 'Get-ItGlueModel', 'Get-ItGlueOrganization', 'Get-ItGluePassword',
     'Get-ItGlueUser',
     'Out-ItGlueAsset', 'Out-ItGlueFlexibleAsset', 'Out-PsLogging',
-    'Remove-ItGlueDeviceConfig', 'Remove-ItGlueFlexibleAssetInstance'
+    'Remove-ItGlueDeviceConfig', 'Remove-ItGlueFlexibleAssetInstance',
+    'Update-ItGlueFlexibleAssetInstance'
 
     # Cmdlets to export from this module
     CmdletsToExport   = '*'
