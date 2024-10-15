@@ -8,6 +8,7 @@ Function Get-ItGlueDocument {
             V2023.07.07.0
             V2023.07.16.0
             V2024.05.10.0
+            V2024.10.15.0
         .LINK
             https://github.com/wetling23/Public.ItGlue.PowerShellModule
         .PARAMETER OrganizationId
@@ -196,9 +197,11 @@ Function Get-ItGlueDocument {
 
                 $loopCount++
             } ElseIf ($_.Exception.Message -match 'Internal Server Error') {
-                Try {
-                    $commandParams.Uri = "$UriBase/api/organizations/$OrganizationId/relationships/documents/$Id`?include=attachments"
+                $commandParams.Uri = "$UriBase/api/organizations/$OrganizationId/relationships/documents/$Id`?include=attachments"
 
+                $message = ("{0}: Attempting alternative URI ({1})." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $commandParams.Uri); If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
+
+                Try {
                     $response = Invoke-RestMethod @commandParams
 
                     $stopLoop = $true
@@ -243,6 +246,8 @@ Function Get-ItGlueDocument {
                 }
             }
         } ElseIf (($response.included) -and ($IncludeAttachment)) {
+            $message = ("{0}: Preparing to download {1} attachments." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $response.included.attributes.id.Count); If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
+
             $cli = New-Object System.Net.WebClient
 
             Foreach ($item in $header.GetEnumerator()) {
@@ -269,4 +274,4 @@ Function Get-ItGlueDocument {
 
         Return $response.data.attributes
     }
-} #2024.05.10.0
+} #2024.10.15.0
