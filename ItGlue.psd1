@@ -4,7 +4,7 @@
     RootModule        = 'ItGlue.psm1'
 
     # Version number of this module.
-    ModuleVersion     = '2024.10.15.0'
+    ModuleVersion     = '2024.10.30.0'
 
     # ID used to uniquely identify this module
     GUID              = '92785682-4c93-4ef3-87aa-bf70c232aa52'
@@ -59,7 +59,7 @@
 
     # Functions to export from this module
     FunctionsToExport = 'Get-ItGlueContact', 'Get-ItGlueDeviceConfig', 'Get-ItGlueDocument',
-    'Get-ItGlueDocumentFolder', 'Get-ItGlueGroup', 'Get-ItGlueFlexibleAssetField',
+    'Get-ItGlueDocumentFolder', 'Get-ItGlueDomain', 'Get-ItGlueGroup', 'Get-ItGlueFlexibleAssetField',
     'Get-ItGlueFlexibleAssetInstance', 'Get-ItGlueJsonWebToken', 'Get-ItGlueLocation',
     'Get-ItGlueManufacturer', 'Get-ItGlueModel', 'Get-ItGlueOrganization', 'Get-ItGluePassword',
     'Get-ItGlueUser',
