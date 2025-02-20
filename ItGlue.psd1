@@ -4,7 +4,7 @@
     RootModule        = 'ItGlue.psm1'
 
     # Version number of this module.
-    ModuleVersion     = '2024.10.30.0'
+    ModuleVersion     = '2025.02.20.0'
 
     # ID used to uniquely identify this module
     GUID              = '92785682-4c93-4ef3-87aa-bf70c232aa52'
@@ -100,7 +100,7 @@
             # IconUri = ''
 
             # ReleaseNotes of this module
-            ReleaseNotes = 'Updated Get-ItGlueDocument (updated logging).'
+            ReleaseNotes = 'Updated Get-ItGlueDocument (return different properties for uploaded documents).'
 
             # External dependent modules of this module
             # ExternalModuleDependencies = ''

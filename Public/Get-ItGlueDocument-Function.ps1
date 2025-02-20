@@ -9,6 +9,8 @@ Function Get-ItGlueDocument {
             V2023.07.16.0
             V2024.05.10.0
             V2024.10.15.0
+            V2025.02.06.0
+            V2025.02.18.0
         .LINK
             https://github.com/wetling23/Public.ItGlue.PowerShellModule
         .PARAMETER OrganizationId
@@ -196,10 +198,10 @@ Function Get-ItGlueDocument {
                 Start-Sleep -Seconds 60
 
                 $loopCount++
-            } ElseIf ($_.Exception.Message -match 'Internal Server Error') {
+            } ElseIf (($_.Exception.Message -match 403) -or ($_.Exception.Message -match 'Internal Server Error')) {
                 $commandParams.Uri = "$UriBase/api/organizations/$OrganizationId/relationships/documents/$Id`?include=attachments"
 
-                $message = ("{0}: Attempting alternative URI ({1})." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $commandParams.Uri); If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
+                $message = ("{0}: Exception: {1}. Attempting alternative URI ({2})." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $_.Exception.Message, $commandParams.Uri); If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
 
                 Try {
                     $response = Invoke-RestMethod @commandParams
@@ -269,9 +271,13 @@ Function Get-ItGlueDocument {
         $message = ("{0}: Returning document properties." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $response.data.id.Count); If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
 
         Return $response
+    } ElseIf ($response.included.id.Count -eq 1) {
+        $message = ("{0}: Returning uploaded-file properties." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $response.data.id.Count); If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
+
+        Return $response.included.attributes
     } ElseIf ($response.data.id.Count -eq 1) {
         $message = ("{0}: Returning document properties." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $response.data.id.Count); If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
 
         Return $response.data.attributes
     }
-} #2024.10.15.0
+} #2025.02.18.0
