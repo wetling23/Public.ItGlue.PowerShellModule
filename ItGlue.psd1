@@ -4,7 +4,7 @@
     RootModule        = 'ItGlue.psm1'
 
     # Version number of this module.
-    ModuleVersion     = '2025.02.20.0'
+    ModuleVersion     = '2025.04.27.0'
 
     # ID used to uniquely identify this module
     GUID              = '92785682-4c93-4ef3-87aa-bf70c232aa52'
@@ -16,7 +16,7 @@
     CompanyName       = ''
 
     # Copyright statement for this module
-    Copyright         = '(c) 2024 mhashemi. All rights reserved.'
+    Copyright         = '(c) 2025 mhashemi. All rights reserved.'
 
     # Description of the functionality provided by this module
     Description       = 'ITGlue REST API-related functions.'
@@ -100,7 +100,7 @@
             # IconUri = ''
 
             # ReleaseNotes of this module
-            ReleaseNotes = 'Updated Get-ItGlueDocument (return different properties for uploaded documents).'
+            ReleaseNotes = 'Updated Get-ItGlueFlexibleAssetInstance (added support for organization filtering by org ID).'
 
             # External dependent modules of this module
             # ExternalModuleDependencies = ''
