@@ -5,6 +5,7 @@ Function Get-ItGlueGroup {
         .NOTES
             V1.0.0.0 date: 12 July 2022
             V1.0.0.1 date: 13 July 2022
+            V2025.05.19
         .LINK
             https://github.com/wetling23/Public.ItGlue.PowerShellModule
         .PARAMETER Id
@@ -34,7 +35,7 @@ Function Get-ItGlueGroup {
 
             In this example, the cmdlet will get the group called 'group 1', using the provided ITGlue API key. Limited logging output is sent only to the host.
         .EXAMPLE
-            PS C:\> Get-ItGlueGroup -Filters @{ name = 'group 1' } -ApiKey (ITG.XXXXXXXXXXXXX | ConvertTo-SecureString -AsPlainText -Force) -IncludeUsers -LogPath C:\Temp\log.txt
+            PS C:\> Get-ItGlueGroup -Filters @{ name = 'group 1' } -ApiKey (ITG.XXXXXXXXXXXXX | ConvertTo-SecureString -AsPlainText -Force) -Include users -LogPath C:\Temp\log.txt
 
             In this example, the cmdlet will get the group called 'group 1', using the provided ITGlue API key. The list of members (ITGlue user object ID) is included. Limited logging output is sent to the host and C:\Temp\log.txt.
          .EXAMPLE
@@ -62,7 +63,8 @@ Function Get-ItGlueGroup {
         [Alias("ItGluePageSize")]
         [Int64]$PageSize = 1000,
 
-        [Switch]$IncludeUsers,
+        [ValidateSet( "users", "organizations", "resource_type_restrictions", "my_glue_account")]
+        [Switch]$Include,
 
         [Boolean]$BlockStdErr = $false,
 
@@ -83,10 +85,12 @@ Function Get-ItGlueGroup {
     $stopLoop = $false
     $loopCount = 1
     $resourcePath = '/groups'
-    $userFilter = ''
-
-    If ($IncludeUsers) {
-        $userFilter = '?include=users'
+    switch ($include) {
+        "users" { $includeFilter = '?include=users'}
+        "organizations" { $includeFilter = '?include=organizations' }
+        "resource_type_restrictions" {  $includeFilter = '?include=resource_type_restrictions'}
+        "my_glue_account" { $includeFilter = "?include=my_glue_account" }
+        Default { $includeFilter = ''}
     }
     #endregion Initialize variables
 
@@ -203,7 +207,7 @@ Function Get-ItGlueGroup {
                         $message = ("{0}: Sending the following:`r`n`tBody:`r`n`t{1}`r`n`tUrl: {2}" -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), ($Filter + $queryBody | Out-String).Trim(), "$UriBase$resourcePath")
                         If ($PSBoundParameters['Verbose'] -or $VerbosePreference -eq 'Continue') { If ($EventLogSource -and (-NOT $LogPath)) { Out-PsLogging -EventLogSource $EventLogSource -MessageType Verbose -Message $message } ElseIf ($LogPath -and (-NOT $EventLogSource)) { Out-PsLogging -LogPath $LogPath -MessageType Verbose -Message $message } Else { Out-PsLogging -ScreenOnly -MessageType Verbose -Message $message } }
 
-                        $response = Invoke-RestMethod -Method GET -Headers $header -Uri "$UriBase$resourcePath$userFilter" -Body $apiFilter -ErrorAction Stop
+                        $response = Invoke-RestMethod -Method GET -Headers $header -Uri "$UriBase$resourcePath$includeFilter" -Body $apiFilter -ErrorAction Stop
 
                         $stopLoop = $True
                     } Catch {
