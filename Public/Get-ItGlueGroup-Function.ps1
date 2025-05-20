@@ -5,7 +5,7 @@ Function Get-ItGlueGroup {
         .NOTES
             V1.0.0.0 date: 12 July 2022
             V1.0.0.1 date: 13 July 2022
-            V2025.05.19
+            V2025.05.19.0
         .LINK
             https://github.com/wetling23/Public.ItGlue.PowerShellModule
         .PARAMETER Id
@@ -64,7 +64,7 @@ Function Get-ItGlueGroup {
         [Int64]$PageSize = 1000,
 
         [ValidateSet( "users", "organizations", "resource_type_restrictions", "my_glue_account")]
-        [Switch]$Include,
+        [String]$Include,
 
         [Boolean]$BlockStdErr = $false,
 
