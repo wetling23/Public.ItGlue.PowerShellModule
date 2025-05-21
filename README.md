@@ -18,3 +18,8 @@ This project is also published in the PowerShell Gallery at https://www.powershe
 * New behavior in logging. Instead of only logging to the Windows event log, the module now defaults to host only.
 * The EventLogSource parameter is still available. If the provided source does not exist, the command will switch to host-only output.
 * The new option is the LogPath parameter. Provide a path and file name (e.g. C:\Temp\log.txt) for logging. The module will attempt to create the log file, if it does not exist, and will switch to host-only output, if the file cannot be created (or the desired path is not writable).
+
+# Breaking changes
+
+## 2025.05.19.0
+* Replaced 'IncludeUsers' from Get-ITGlueGroup with Include to Switch between the possible Includes (users, organizations, resource_type_restrictions, my_glue_account)
