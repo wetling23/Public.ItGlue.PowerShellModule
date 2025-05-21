@@ -11,6 +11,7 @@ Function Get-ItGlueDocument {
             V2024.10.15.0
             V2025.02.06.0
             V2025.02.18.0
+            V2025.05.15.0
         .LINK
             https://github.com/wetling23/Public.ItGlue.PowerShellModule
         .PARAMETER OrganizationId
@@ -208,15 +209,25 @@ Function Get-ItGlueDocument {
 
                     $stopLoop = $true
                 } Catch {
-                    $message = ("{0}: Unexpected error getting document. To prevent errors, {1} will exit. Error details, if present:`r`n`t
+                    If ($_.Exception.Message -match '401') {
+                        $message = ("{0}: 401 error while getting document. Update access token or credential and try again. Error: {1}" -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $_.Exception.Message); Out-PsLogging @loggingParams -MessageType Error -Message $message
+
+                        Return "401"
+                    } Else {
+                        $message = ("{0}: Unexpected error getting document. To prevent errors, {1} will exit. Error details, if present:`r`n`t
     Error title: {2}`r`n`t
     Error detail is: {3}`r`t`n
     PowerShell returned: {4}" -f `
-                        ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $MyInvocation.MyCommand, ($_.ErrorDetails.message | ConvertFrom-Json).errors.title, (($_.ErrorDetails.message | ConvertFrom-Json -ErrorAction SilentlyContinue | Select-Object -ExpandProperty errors).detail), $_.Exception.Message)
-                    Out-PsLogging @loggingParams -MessageType Error -Message $message
+                            ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $MyInvocation.MyCommand, ($_.ErrorDetails.message | ConvertFrom-Json).errors.title, (($_.ErrorDetails.message | ConvertFrom-Json -ErrorAction SilentlyContinue | Select-Object -ExpandProperty errors).detail), $_.Exception.Message)
+                        Out-PsLogging @loggingParams -MessageType Error -Message $message
 
-                    Return "Error"
+                        Return "Error"
+                    }
                 }
+            } ElseIf ($_.Exception.Message -match '401') {
+                $message = ("{0}: Encountered 401 error while getting document. Update access token or credential and try again. Error: {1}" -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $_.Exception.Message); Out-PsLogging @loggingParams -MessageType Error -Message $message
+
+                Return "401"
             } Else {
                 $message = ("{0}: Unexpected error getting document. To prevent errors, {1} will exit. Error details, if present:`r`n`t
     Error title: {2}`r`n`t
@@ -280,4 +291,4 @@ Function Get-ItGlueDocument {
 
         Return $response.data.attributes
     }
-} #2025.02.18.0
+} #2025.05.15.0
