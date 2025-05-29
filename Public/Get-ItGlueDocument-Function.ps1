@@ -13,6 +13,7 @@ Function Get-ItGlueDocument {
             V2025.02.18.0
             V2025.05.15.0
             V2025.05.29.0
+            V2025.05.29.1
         .LINK
             https://github.com/wetling23/Public.ItGlue.PowerShellModule
         .PARAMETER OrganizationId
@@ -269,8 +270,6 @@ Function Get-ItGlueDocument {
             $cli = New-Object System.Net.WebClient
 
             Foreach ($item in $header.GetEnumerator()) {
-                write-host ('name: {0}' -f $item.name)
-                Write-Host ('value: {0}' -f $item.value)
                 $cli.Headers[$item.name] = $item.value
             }
 
@@ -298,4 +297,4 @@ Function Get-ItGlueDocument {
 
         Return $response.data.attributes
     }
-} #2025.05.29.0
+} #2025.05.29.1
