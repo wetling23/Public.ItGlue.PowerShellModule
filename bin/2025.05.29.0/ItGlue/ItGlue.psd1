@@ -4,7 +4,7 @@
     RootModule        = 'ItGlue.psm1'
 
     # Version number of this module.
-    ModuleVersion     = '2025.05.21.0'
+    ModuleVersion     = '2025.05.29.0'
 
     # ID used to uniquely identify this module
     GUID              = '92785682-4c93-4ef3-87aa-bf70c232aa52'
@@ -100,7 +100,7 @@
             # IconUri = ''
 
             # ReleaseNotes of this module
-            ReleaseNotes = 'Updated Get-ItGlueGroup (added support for more filters) and Get-ItGlueDocument (added new return value: "401").'
+            ReleaseNotes = 'Get-ItGlueDocument (Generate random file name when a document attachment is called ".").'
 
             # External dependent modules of this module
             # ExternalModuleDependencies = ''

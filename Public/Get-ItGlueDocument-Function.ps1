@@ -12,6 +12,7 @@ Function Get-ItGlueDocument {
             V2025.02.06.0
             V2025.02.18.0
             V2025.05.15.0
+            V2025.05.29.0
         .LINK
             https://github.com/wetling23/Public.ItGlue.PowerShellModule
         .PARAMETER OrganizationId
@@ -250,6 +251,10 @@ Function Get-ItGlueDocument {
             }
 
             Foreach ($file in $response.attachments) {
+                If ($file.name -eq '.') {
+                    $file.name = ((65..90) + (97..122) | Get-Random -Count 9 | ForEach-Object { [char]$_ }) -join ''
+                }
+
                 Try {
                     $cli.DownloadFile(("https://{0}.itglue.com{1}" -f $Tenant, $file.url), ('{0}{1}{2}' -f $OutputDirectory.FullName, $(If ($OutputDirectory.FullName -notmatch '\\$') { '\' }), $file.name))
                 } Catch {
@@ -264,6 +269,8 @@ Function Get-ItGlueDocument {
             $cli = New-Object System.Net.WebClient
 
             Foreach ($item in $header.GetEnumerator()) {
+                write-host ('name: {0}' -f $item.name)
+                Write-Host ('value: {0}' -f $item.value)
                 $cli.Headers[$item.name] = $item.value
             }
 
@@ -283,7 +290,7 @@ Function Get-ItGlueDocument {
 
         Return $response
     } ElseIf ($response.included.id.Count -eq 1) {
-        $message = ("{0}: Returning uploaded-file properties." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $response.data.id.Count); If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
+        $message = ("{0}: Returning retrieved properties of file that was uploaded to ITGlue." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $response.data.id.Count); If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
 
         Return $response.included.attributes
     } ElseIf ($response.data.id.Count -eq 1) {
@@ -291,4 +298,4 @@ Function Get-ItGlueDocument {
 
         Return $response.data.attributes
     }
-} #2025.05.15.0
+} #2025.05.29.0
