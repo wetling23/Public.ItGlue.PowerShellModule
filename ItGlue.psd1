@@ -4,7 +4,7 @@
     RootModule        = 'ItGlue.psm1'
 
     # Version number of this module.
-    ModuleVersion     = '2025.05.29.1'
+    ModuleVersion     = '2025.06.16.0'
 
     # ID used to uniquely identify this module
     GUID              = '92785682-4c93-4ef3-87aa-bf70c232aa52'
@@ -63,6 +63,7 @@
     'Get-ItGlueFlexibleAssetInstance', 'Get-ItGlueJsonWebToken', 'Get-ItGlueLocation',
     'Get-ItGlueManufacturer', 'Get-ItGlueModel', 'Get-ItGlueOrganization', 'Get-ItGluePassword',
     'Get-ItGlueUser',
+    'New-ItGlueOrganization',
     'Out-ItGlueAsset', 'Out-ItGlueFlexibleAsset', 'Out-PsLogging',
     'Remove-ItGlueDeviceConfig', 'Remove-ItGlueFlexibleAssetInstance',
     'Update-ItGlueFlexibleAssetInstance'
@@ -100,7 +101,7 @@
             # IconUri = ''
 
             # ReleaseNotes of this module
-            ReleaseNotes = 'Get-ItGlueDocument (Removed Write-Host used for debugging).'
+            ReleaseNotes = 'Added New-ItGlueOrganization'
 
             # External dependent modules of this module
             # ExternalModuleDependencies = ''
