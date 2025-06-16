@@ -1,17 +1,15 @@
-Function Get-ItGlueOrganization {
+Function New-ItGlueOrganization {
     <#
         .DESCRIPTION
             Connects to the ITGlue API and returns one or organizations.
         .NOTES
             V2025.06.12.0
                 - Initial release
+            V2025.06.16.0
         .LINK
             https://github.com/wetling23/Public.ItGlue.PowerShellModule
-            ##--
         .PARAMETER OrganizationName
             Enter the name of the desired customer, or "All" to retrieve all organizations.
-        .PARAMETER OrganizationId
-            Desired customer's ITGlue organization ID.
         .PARAMETER ApiKey
             ITGlue API key used to send data to ITGlue.
         .PARAMETER UserCred
@@ -27,17 +25,18 @@ Function Get-ItGlueOrganization {
         .PARAMETER LogPath
             When included (when EventLogSource is null), represents the file, to which the cmdlet will output will be logged. If no path or event log source are provided, output is sent only to the host.
         .EXAMPLE
-            PS C:\> Get-ItGlueOrganization -ItGlueApiKey ITG.XXXXXXXXXXXXX -OrganizationName All
+            PS C:\> New-ItGlueOrganization -ItGlueApiKey ITG.XXXXXXXXXXXXX -OrganizationName "Acme Inc."
 
-            In this example, the cmdlet will get all of the organzations in the instance. Output is sent to the host session and event log.
+            In this example, the cmdlet will create a new organization with the name "Acme Inc.". Limited logging output is sent to the host session only.
         .EXAMPLE
-            PS C:\> Get-ItGlueOrganization -UserCred (Get-Credential) -ComputerName company1 -Verbose
+            PC C:\> $attributes = '{"name":"Acme Inc.","description":"This is a test organization","alert-message":"This is an alert message","quick-notes":"<b>This is a quick note</b>"}'
+            PS C:\> New-ItGlueOrganization -ItGlueApiKey ITG.XXXXXXXXXXXXX -OrganizationAttributes $attributes -Verbose
 
-            In this example, the cmdlet will get all of the organzations in the instance, with the name "company1". Verbose output is sent to the host.
+            In this example, the cmdlet will create a new organization with the name "Acme Inc.", description, alert message, and quick note properties are also populated. Verbose logging output is sent to the host session only.
         .EXAMPLE
-            PS C:\> Get-ItGlueOrganization -UserCred (Get-Credential) -OrganizationId 123456 -BlockLogging -LogPath C:\Temp\log.txt
+            PS C:\> New-ItGlueOrganization -ItGlueApiKey ITG.XXXXXXXXXXXXX -OrgName "Acme Inc." -OrgDescription "This is a test organization" -OrgAlert This is an alert message" -OrgQuickNote "<b>This is a quick note</b>" -Verbose -LogPath "C:\Temp\log.txt"
 
-            In this example, the cmdlet will get the customer with ID 123456, using the provided ITGlue user credentials. Output will be written to the log file and host.
+            In this example, the cmdlet will create a new organization with the name "Acme Inc.", description, alert message, and quick note properties are also populated. Verbose logging output is sent to the host session and C:\Temp\log.txt.
     #>
     [CmdletBinding(DefaultParameterSetName = 'ApiKey')]
     param (
