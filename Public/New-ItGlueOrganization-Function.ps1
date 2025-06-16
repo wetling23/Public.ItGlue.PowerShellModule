@@ -216,7 +216,7 @@ Function Get-ItGlueOrganization {
             $stopLoop = $True
 
             $message = ("{0}: Created the org, '{1}'." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $OrgName); If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
-        }Catch {
+        } Catch {
             If ($_.Exception.Message -match 429) {
                 If ($429Count -lt 9) {
                     $message = ("{0}: Rate limit reached. Sleeping for 60 seconds before trying again." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss")); If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
