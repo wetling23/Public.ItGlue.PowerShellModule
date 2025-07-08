@@ -6,6 +6,8 @@ Function New-ItGlueOrganization {
             V2025.06.12.0
                 - Initial release
             V2025.06.16.0
+            V2025.06.24.0
+            V2025.07.08.0
         .LINK
             https://github.com/wetling23/Public.ItGlue.PowerShellModule
         .PARAMETER OrganizationName
@@ -29,7 +31,19 @@ Function New-ItGlueOrganization {
 
             In this example, the cmdlet will create a new organization with the name "Acme Inc.". Limited logging output is sent to the host session only.
         .EXAMPLE
-            PC C:\> $attributes = '{"name":"Acme Inc.","description":"This is a test organization","alert-message":"This is an alert message","quick-notes":"<b>This is a quick note</b>"}'
+            PC C:\> $attributes = @"
+            {
+                "data": {
+                    "type": "organizations",
+                    "attributes": {
+                        "name": "Acme Inc.",
+                        "description": "This is a test organization",
+                        "alert-message": "This is an alert message",
+                        "quick-notes": "<b>This is a quick note</b>"
+                    }
+                }
+            }
+            "@
             PS C:\> New-ItGlueOrganization -ItGlueApiKey ITG.XXXXXXXXXXXXX -OrganizationAttributes $attributes -Verbose
 
             In this example, the cmdlet will create a new organization with the name "Acme Inc.", description, alert message, and quick note properties are also populated. Verbose logging output is sent to the host session only.
@@ -132,41 +146,20 @@ Function New-ItGlueOrganization {
     $message = ("{0}: Operating in the {1} parameterset." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $PsCmdlet.ParameterSetName); If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
 
     #region Auth
-    If ($UserCred -and $AccessToken) {
-        $message = ("{0}: Both a credential and access token were provided. Ignoring the credential." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss")); If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
+    Switch ($PsCmdlet.ParameterSetName) {
+        'ApiKey' {
+            $message = ("{0}: Setting header with API key." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss")); If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
 
-        $header = @{
-            "Authorization" = "Bearer $([System.Runtime.InteropServices.Marshal]::PtrToStringAuto([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($AccessToken)))"
-            'Content-Type'  = 'application/vnd.api+json'
-            'Accept'        = 'application/json, text/plain'
+            $header = @{"x-api-key" = [System.Runtime.InteropServices.Marshal]::PtrToStringAuto([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($ApiKey)); "content-type" = "application/vnd.api+json"; }
         }
-    } ElseIf (-NOT($UserCred) -and $AccessToken) {
-        # This /could/ be combined with the option above, but I wanted different messages.
-        $message = ("{0}: Using the provided access token." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss")); If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
+        'UserCred' {
+            $message = ("{0}: Setting header with user-access token." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss")); If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
 
-        $header = @{
-            "Authorization" = "Bearer $([System.Runtime.InteropServices.Marshal]::PtrToStringAuto([System.Runtime.InteropServices.Marshal]::SecureStringToBSTR($AccessToken)))"
-            'Content-Type'  = 'application/vnd.api+json'
-            'Accept'        = 'application/json, text/plain'
+            $accessToken = Get-ItGlueJsonWebToken -Credential $UserCred @commandParams
+
+            $UriBase = 'https://api-mobile-prod.itglue.com/api'
+            $header = @{ 'cache-control' = 'no-cache'; 'content-type' = 'application/vnd.api+json'; 'authorization' = "Bearer $(($accessToken.Content | ConvertFrom-Json).token)" }
         }
-    } ElseIf ($UserCred -and -NOT($AccessToken)) {
-        $message = ("{0}: Attempting to generate an access token, using the provided credential." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss")); If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
-
-        $message = ("{0}: Setting header with user-access token." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss")); If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
-
-        $accessToken = Get-ItGlueJsonWebToken -Credential $UserCred -UriBase $UriBase @loggingParams
-
-        If ($AccessToken) {
-            $header = @{ 'content-type' = 'application/vnd.api+json'; 'accept' = 'application/json, text/plain'; 'authorization' = "Bearer $accessToken" }
-        } Else {
-            $message = ("{0}: Unable to generate an access token." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss")); Out-PsLogging @loggingParams -MessageType Error -Message $message
-
-            Return "Error"
-        }
-    } Else {
-        $message = ("{0}: No authentication mechanisms provided. Re-run the command with either an access token or a user credential, authorized to create an access token." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss")); If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
-
-        Return "Error"
     }
     #endregion Auth
     #endregion Setup
@@ -214,7 +207,7 @@ Function New-ItGlueOrganization {
 
             $stopLoop = $True
 
-            $message = ("{0}: Created the org, '{1}'." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $OrgName); If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
+            $message = ("{0}: Created the org, '{1}'." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $response.data.attributes.name); If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
         } Catch {
             If ($_.Exception.Message -match 429) {
                 If ($429Count -lt 9) {
@@ -234,7 +227,7 @@ Function New-ItGlueOrganization {
 
                     $loopCount++
                 } Else {
-                    $message = ("{0}: Unexpected error getting device configurations assets. To prevent errors, {1} will exit. If present, the error detail is {2} PowerShell returned: {3}" -f `
+                    $message = ("{0}: Unexpected error creating organization. To prevent errors, {1} will exit. If present, the error detail is {2} PowerShell returned: {3}" -f `
                             ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $MyInvocation.MyCommand, (($_.ErrorDetails.message | ConvertFrom-Json -ErrorAction SilentlyContinue | Select-Object -ExpandProperty errors).detail), $_.Exception.Message); Out-PsLogging @loggingParams -MessageType Error -Message $message
 
                     Return "Error"
@@ -245,4 +238,4 @@ Function New-ItGlueOrganization {
 
     Return $response.data
     #endregion Main
-} #2025.06.12.0
+} #2025.07.08.0

@@ -18,6 +18,7 @@ Function Get-ItGlueFlexibleAssetInstance {
             V1.0.0.20 date: 8 July 2020
             V1.0.0.21 date: 7 August 2020
             V2025.04.27.0
+            V2025.07.08.0
         .LINK
             https://github.com/wetling23/Public.ItGlue.PowerShellModule
         .PARAMETER ApiKey
@@ -79,17 +80,17 @@ Function Get-ItGlueFlexibleAssetInstance {
         [string]$LogPath
     )
 
-    $message = ("{0}: Beginning {1}." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $MyInvocation.MyCommand); If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
-
     #region Setup
-    $message = ("{0}: Operating in the {1} parameterset." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $PsCmdlet.ParameterSetName); If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
-
     #region Initialize variables
     $retrievedInstanceCollection = [System.Collections.Generic.List[PSObject]]::New()
     $stopLoop = $false
     $loopCount = 1
     $429Count = 0
     #endregion Initialize variables
+
+    $message = ("{0}: Beginning {1}." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $MyInvocation.MyCommand); If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
+
+    $message = ("{0}: Operating in the {1} parameterset." -f ([datetime]::Now).ToString("yyyy-MM-dd`THH:mm:ss"), $PsCmdlet.ParameterSetName); If ($loggingParams.Verbose) { Out-PsLogging @loggingParams -MessageType Verbose -Message $message }
 
     #region Logging splatting
     If ($PSBoundParameters['Verbose'] -or $VerbosePreference -eq 'Continue') {
@@ -299,4 +300,4 @@ Function Get-ItGlueFlexibleAssetInstance {
         Return $retrievedInstanceCollection
     }
     #endregion Main
-} #V2025.04.27.0
+} #2025.07.08.0
